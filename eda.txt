@@ -1,0 +1,865 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+from datetime import datetime
+import warnings
+warnings.filterwarnings('ignore')
+
+# Create a directory for figures
+if not os.path.exists('figures'):
+    os.makedirs('figures')
+
+# Set consistent style for all plots
+plt.style.use('seaborn-v0_8-whitegrid')
+# Standard colors for most charts
+colors = sns.color_palette("viridis", 8)
+# Distinctive colors only for trajectory charts
+distinct_colors = ['#e6194B', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6']
+timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+
+# Month mapping for better formatting
+month_names = {1:'Jan', 2:'Feb', 3:'Mar', 4:'Apr', 5:'May', 6:'Jun', 
+               7:'Jul', 8:'Aug', 9:'Sep', 10:'Oct', 11:'Nov', 12:'Dec'}
+
+# Platform naming for better formatting
+platform_names = {
+    'hot100': 'Hot 100', 
+    'radio': 'Radio', 
+    'streaming': 'Streaming', 
+    'sales': 'Sales', 
+    'apple': 'Apple Music', 
+    'spotify': 'Spotify'
+}
+
+# Load data
+print("Loading data...")
+data = pd.read_csv("final.csv")
+
+#######################################
+# 1. BASIC DATASET EXPLORATION
+#######################################
+print("\n" + "="*50)
+print("1. BASIC DATASET INFORMATION")
+print("="*50)
+
+print(f"Dataset shape: {data.shape}")
+print(f"Number of unique tracks: {data['track'].nunique()}")
+print(f"Number of unique artists: {data['artist'].nunique()}")
+print(f"Number of weeks: {data['week'].nunique()}")
+print(f"Number of quarters: {data['quarter'].nunique()}")
+print(f"Number of months: {data['month'].nunique()}")
+
+# Chart size info
+print("\nChart size information:")
+print(f"Hot 100: 100 positions")
+print(f"Radio: 50 positions")
+print(f"Streaming: 50 positions")
+print(f"Sales: 25 positions")
+print(f"Apple Music: 100 positions")
+print(f"Spotify: 200 positions")
+
+# Check for missing values
+missing_values = data.isnull().sum()
+print("\nMissing values per column:")
+print(missing_values[missing_values > 0] if missing_values.sum() > 0 else "No missing values")
+
+# Get variable types for better organization
+numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
+categorical_cols = data.select_dtypes(include=['object']).columns.tolist()
+
+#######################################
+# 2. CROSS-PLATFORM PRESENCE ANALYSIS
+#######################################
+print("\n" + "="*50)
+print("2. CROSS-PLATFORM PRESENCE ANALYSIS")
+print("="*50)
+
+# Get unique tracks that appeared in Hot 100
+hot100_tracks = data[data['hot100_rank'] > 0]['track'].unique()
+print(f"Total unique tracks in Hot 100: {len(hot100_tracks)}")
+
+# Calculate percentage present in each chart
+platforms = ['hot100', 'radio', 'streaming', 'sales', 'apple', 'spotify']
+platform_presence = {}
+
+for platform in platforms:
+    # Count unique tracks that appeared in this platform
+    platform_tracks = data[data[f'{platform}_rank'] > 0]['track'].unique()
+    
+    # Calculate percentage of Hot 100 tracks that appeared in this platform
+    if platform == 'hot100':
+        platform_presence[platform] = 100.0  # By definition
+    else:
+        platform_presence[platform] = len(np.intersect1d(hot100_tracks, platform_tracks)) / len(hot100_tracks) * 100
+
+print("\nPercentage of Hot 100 tracks present in each chart:")
+for platform, percentage in platform_presence.items():
+    print(f"{platform_names[platform]}: {percentage:.2f}%")
+
+# Plot overall platform presence
+plt.figure(figsize=(12, 7))
+bars = plt.bar([platform_names[p] for p in platform_presence.keys()], 
+               list(platform_presence.values()), color=colors)
+plt.title('Percentage of Hot 100 Tracks Present in Each Chart', fontsize=14)
+plt.ylabel('Percentage (%)', fontsize=12)
+plt.xlabel('Chart', fontsize=12)
+plt.ylim(0, 100)
+plt.xticks(rotation=45, fontsize=11)
+
+# Add percentage labels
+for bar in bars:
+    height = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2., height + 1,
+             f'{height:.1f}%', ha='center', fontsize=10)
+
+plt.tight_layout()
+plt.savefig('figures/platform_presence_overall.png')
+
+#######################################
+# 3. PLATFORM STATISTICS
+#######################################
+print("\n" + "="*50)
+print("3. PLATFORM STATISTICS")
+print("="*50)
+
+# Calculate average weeks on chart for each platform
+avg_woc = {}
+for platform in platforms:
+    # Group by track and count weeks where rank > 0
+    platform_woc = data.groupby('track').apply(lambda x: (x[f'{platform}_rank'] > 0).sum())
+    avg_woc[platform] = platform_woc.mean()
+
+print("\nAverage weeks on chart by platform:")
+for platform, avg in avg_woc.items():
+    print(f"{platform_names[platform]}: {avg:.2f} weeks")
+
+# Plot average WOC
+plt.figure(figsize=(12, 7))
+bars = plt.bar([platform_names[p] for p in avg_woc.keys()], 
+               list(avg_woc.values()), color=colors)
+plt.title('Average Weeks on Chart by Platform', fontsize=14)
+plt.ylabel('Weeks', fontsize=12)
+plt.xlabel('Chart', fontsize=12)
+plt.xticks(rotation=45, fontsize=11)
+
+# Add value labels
+for bar in bars:
+    height = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2., height + 0.1,
+             f'{height:.1f}', ha='center', fontsize=10)
+
+plt.tight_layout()
+plt.savefig('figures/avg_woc_by_platform.png')
+
+# Calculate number of unique #1 songs per platform
+num_no1 = {}
+for platform in platforms:
+    # Count tracks that reached #1
+    no1_tracks = data[data[f'{platform}_rank'] == 1]['track'].unique()
+    num_no1[platform] = len(no1_tracks)
+
+print("\nNumber of unique #1 songs by platform:")
+for platform, count in num_no1.items():
+    print(f"{platform_names[platform]}: {count} unique #1 songs")
+
+# Plot number of #1 songs
+plt.figure(figsize=(12, 7))
+bars = plt.bar([platform_names[p] for p in num_no1.keys()], 
+               list(num_no1.values()), color=colors)
+plt.title('Number of Unique #1 Songs by Platform', fontsize=14)
+plt.ylabel('Count', fontsize=12)
+plt.xlabel('Chart', fontsize=12)
+plt.xticks(rotation=45, fontsize=11)
+
+# Add value labels
+for bar in bars:
+    height = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2., height + 0.3,
+             f'{height}', ha='center', fontsize=10)
+
+plt.tight_layout()
+plt.savefig('figures/unique_no1_by_platform.png')
+
+# Calculate number of #1 songs per month for Hot 100
+monthly_no1 = data[data['hot100_rank'] == 1].groupby('month')['track'].nunique()
+
+print("\nNumber of unique Hot 100 #1 songs by month:")
+for month, count in monthly_no1.items():
+    print(f"Month {month_names[month]}: {count} unique #1 songs")
+
+# Plot monthly #1 songs
+plt.figure(figsize=(12, 7))
+bars = plt.bar([month_names[m] for m in monthly_no1.index], 
+               monthly_no1.values, color=colors[0])
+plt.title('Number of Unique Hot 100 #1 Songs by Month', fontsize=14)
+plt.ylabel('Count', fontsize=12)
+plt.xlabel('Month', fontsize=12)
+
+# Add value labels
+for bar in bars:
+    height = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2., height + 0.1,
+             f'{height}', ha='center', fontsize=10)
+
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.tight_layout()
+plt.savefig('figures/monthly_no1_hot100.png')
+
+#######################################
+# 4. TOP LONGEVITY CHARTS
+#######################################
+print("\n" + "="*50)
+print("4. TOP LONGEVITY CHARTS")
+print("="*50)
+
+# For each platform, calculate total weeks on chart for each track
+for platform in platforms:
+    woc_by_track = data.groupby(['track', 'artist']).apply(
+        lambda x: (x[f'{platform}_rank'] > 0).sum()
+    ).reset_index(name=f'{platform}_weeks')
+    
+    # Get top 10 tracks with most weeks on chart
+    top_woc = woc_by_track.sort_values(f'{platform}_weeks', ascending=False).head(10)
+    
+    print(f"\nTop 10 songs with most weeks on {platform_names[platform]} chart:")
+    for i, (_, row) in enumerate(top_woc.iterrows(), 1):
+        print(f"{i}. \"{row['track']}\" by {row['artist']} - {row[f'{platform}_weeks']} weeks")
+    
+    # Create visualization with track and artist
+    plt.figure(figsize=(12, 8))
+    
+    # Create labels with artist name
+    labels = [f"{track}\n{artist}" for track, artist in zip(top_woc['track'], top_woc['artist'])]
+    
+    bars = plt.barh(labels, top_woc[f'{platform}_weeks'], 
+                   color=colors[platforms.index(platform) % len(colors)])
+    plt.title(f'Top 10 Songs with Most Weeks on {platform_names[platform]} Chart', fontsize=14)
+    plt.xlabel('Weeks on Chart', fontsize=12)
+    plt.gca().invert_yaxis()  # Put highest at top
+    
+    # Add value labels
+    for bar in bars:
+        width = bar.get_width()
+        plt.text(width + 0.5, bar.get_y() + bar.get_height()/2,
+                 f'{width:.0f}', va='center', fontsize=10)
+    
+    plt.tight_layout()
+    plt.savefig(f'figures/top10_woc_{platform}.png')
+
+# Songs that never hit #1 on Billboard Hot 100
+print("\n=== Songs that never hit #1 on Billboard Hot 100 ===")
+
+# For each platform, count songs that peaked at positions #2, #3, #4, and #5
+peak_positions = {2: [], 3: [], 4: [], 5: []}
+
+for platform in platforms:
+    # Dictionary to store counts for each peak position
+    position_counts = {2: 0, 3: 0, 4: 0, 5: 0}
+    
+    # Process all tracks for this platform
+    for track in data['track'].unique():
+        track_data = data[data['track'] == track]
+        
+        # Skip if track has no data for this platform
+        if track_data[f'{platform}_rank'].isnull().all() or (track_data[f'{platform}_rank'] > 0).sum() == 0:
+            continue
+        
+        # Get peak position for this platform
+        peak_rank = track_data[f'{platform}_rank'].min()
+        
+        # Check if it peaked at one of our target positions (never hit #1)
+        if peak_rank in [2, 3, 4, 5]:
+            # Verify it never hit #1
+            if (track_data[f'{platform}_rank'] != 1).all():
+                position_counts[peak_rank] += 1
+    
+    # Print the counts for this platform
+    print(f"\nSongs that peaked at positions #2-#5 on {platform_names[platform]} chart:")
+    for pos, count in position_counts.items():
+        print(f"Peak position #{pos}: {count} songs")
+    
+    # Store the data for plotting
+    for pos in position_counts:
+        peak_positions[pos].append((platform, position_counts[pos]))
+    
+    # Create bar chart for this platform
+    plt.figure(figsize=(10, 6))
+    positions = list(position_counts.keys())
+    counts = list(position_counts.values())
+    
+    bars = plt.bar(positions, counts, color=colors[:len(positions)])
+    plt.title(f'Songs that never hit #1 on {platform_names[platform]}', fontsize=14)
+    plt.xlabel('Peak Position', fontsize=12)
+    plt.ylabel('Number of Songs', fontsize=12)
+    plt.xticks(positions, [f'#{p}' for p in positions])
+    
+    # Add count labels above bars
+    for bar in bars:
+        height = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width()/2., height + 0.5,
+                 f'{int(height)}', ha='center', fontsize=10)
+    
+    plt.grid(axis='y', linestyle='--', alpha=0.6)
+    plt.tight_layout()
+    plt.savefig(f'figures/peak_positions_{platform}.png')
+
+# Create a comparative chart across all platforms for each peak position
+for pos in peak_positions:
+    plt.figure(figsize=(12, 7))
+    
+    platforms_list = [platform_names[p] for p, _ in peak_positions[pos]]
+    counts = [count for _, count in peak_positions[pos]]
+    
+    bars = plt.bar(platforms_list, counts, color=colors[pos-2])
+    plt.title(f'Songs that peaked at position #{pos} across platforms', fontsize=14)
+    plt.xlabel('Platform', fontsize=12)
+    plt.ylabel('Number of Songs', fontsize=12)
+    plt.xticks(rotation=45)
+    
+    # Add count labels above bars
+    for bar in bars:
+        height = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width()/2., height + 0.5,
+                 f'{int(height)}', ha='center', fontsize=10)
+    
+    plt.grid(axis='y', linestyle='--', alpha=0.6)
+    plt.tight_layout()
+    plt.savefig(f'figures/peak_position_{pos}_comparison.png')
+
+#######################################
+# 5. DYNAMICS ANALYSIS - RELATIVE CHANGES
+#######################################
+print("\n" + "="*50)
+print("5. DYNAMICS ANALYSIS - RELATIVE CHANGES")
+print("="*50)
+
+# Calculate biggest growth and decline percent changes for Hot 100
+# Filter for valid changes where both current and previous positions are valid
+valid_data = data[(data['hot100_rank'] > 0) & (data['hot100_last_week'] > 0)].copy()
+
+# Calculate absolute position change
+valid_data['position_change'] = valid_data['hot100_last_week'] - valid_data['hot100_rank']
+
+# Calculate percent change relative to chart size (100 positions for Hot 100)
+valid_data['percent_change'] = valid_data['position_change'] / 100 * 100
+valid_data['prev_rank'] = valid_data['hot100_last_week']
+valid_data['curr_rank'] = valid_data['hot100_rank']
+
+# Get biggest growths (positive percent change) - UPDATED to show top 5
+top_growth = valid_data[valid_data['position_change'] > 0].sort_values('percent_change', ascending=False).head(5)
+
+print("\nBiggest Growth Rates on Hot 100 (by relative change):")
+for i, (_, row) in enumerate(top_growth.iterrows(), 1):
+    print(f"{i}. \"{row['track']}\" by {row['artist']} - "
+          f"{row['percent_change']:.2f}% (From #{row['prev_rank']:.0f} to #{row['curr_rank']:.0f})")
+
+# Plot top growth rates - UPDATED to show top 5
+plt.figure(figsize=(14, 6))  # Adjusted height for 5 entries
+
+# Create labels with artist name
+labels = [f"{track}\n{artist}" for track, artist in zip(top_growth['track'], top_growth['artist'])]
+
+bars = plt.barh(labels, top_growth['percent_change'], color=colors[2])
+plt.title('Top 5 biggest growth rates on Hot 100', fontsize=14)
+plt.xlabel('Position Improvement (%)', fontsize=12)  # Removed "Relative"
+plt.gca().invert_yaxis()  # Put highest at top
+
+# Add detailed labels with position change
+for i, (_, row) in enumerate(top_growth.iterrows()):
+    plt.text(row['percent_change'] + 0.5, i,
+             f"{row['percent_change']:.1f}% (#{row['prev_rank']:.0f} ? #{row['curr_rank']:.0f})", 
+             va='center', fontsize=9)
+
+plt.tight_layout()
+plt.savefig('figures/top5_growth_hot100.png')
+
+# Get biggest declines (negative percent change) - UPDATED to show top 5
+top_decline = valid_data[valid_data['position_change'] < 0].sort_values('percent_change').head(5)
+
+print("\nBiggest Decline Rates on Hot 100 (by relative change):")
+for i, (_, row) in enumerate(top_decline.iterrows(), 1):
+    print(f"{i}. \"{row['track']}\" by {row['artist']} - "
+          f"{row['percent_change']:.2f}% (From #{row['prev_rank']:.0f} to #{row['curr_rank']:.0f})")
+
+# Plot top decline rates with absolute values of percentage change - UPDATED to show top 5
+plt.figure(figsize=(14, 6))  # Adjusted height for 5 entries
+
+# Create labels with artist name
+labels = [f"{track}\n{artist}" for track, artist in zip(top_decline['track'], top_decline['artist'])]
+
+bars = plt.barh(labels, abs(top_decline['percent_change']), color=colors[0])
+plt.title('Top 5 biggest decline rates on Hot 100', fontsize=14)
+plt.xlabel('Position Decline (%)', fontsize=12)  # Removed "Relative"
+plt.gca().invert_yaxis()  # Put highest at top
+
+# Add detailed labels with position change
+for i, (_, row) in enumerate(top_decline.iterrows()):
+    plt.text(abs(row['percent_change']) + 0.5, i,
+             f"{abs(row['percent_change']):.1f}% (#{row['prev_rank']:.0f} ? #{row['curr_rank']:.0f})", 
+             va='center', fontsize=9)
+
+plt.tight_layout()
+plt.savefig('figures/top5_decline_hot100.png')
+
+#######################################
+# 6. SPECIAL FOCUS: DRAMATIC CLIMBS/DROPS TO/FROM #1
+#######################################
+print("\n" + "="*50)
+print("6. SPECIAL FOCUS: DRAMATIC CLIMBS/DROPS TO/FROM #1")
+print("="*50)
+
+# Most dramatic climbs to #1
+print("\n=== Most dramatic climbs to #1 ===")
+
+# Find all instances of songs climbing to #1
+dramatic_climbs_to_no1 = []
+
+for track in data['track'].unique():
+    track_data = data[data['track'] == track].sort_values('week')
+    
+    # Skip if no chart data
+    if len(track_data) == 0 or track_data['hot100_rank'].isnull().all():
+        continue
+    
+    # Find all weeks where the song becomes #1 (but wasn't #1 the week before)
+    for i in range(1, len(track_data)):
+        curr_week = track_data.iloc[i]
+        prev_week = track_data.iloc[i-1]
+        
+        # Check if this week is #1 and previous week was on chart but not #1
+        if (curr_week['hot100_rank'] == 1 and 
+            prev_week['hot100_rank'] > 1 and 
+            prev_week['hot100_rank'] > 0):
+            
+            # Calculate position change (how many positions jumped)
+            jump_size = prev_week['hot100_rank'] - 1
+            
+            dramatic_climbs_to_no1.append({
+                'track': track,
+                'artist': track_data['artist'].iloc[0],
+                'prev_rank': prev_week['hot100_rank'],
+                'jump_size': jump_size,
+                'week': curr_week['week'],
+                'month': curr_week['month']
+            })
+
+# Get top 7 most dramatic climbs based on relative position (growth rate)
+if dramatic_climbs_to_no1:
+    climbs_df = pd.DataFrame(dramatic_climbs_to_no1)
+    
+    # Sort by jump size (most dramatic first)
+    top_dramatic_climbs = climbs_df.sort_values('jump_size', ascending=False).head(7)
+    
+    print("\nTop 5 Most Dramatic Climbs to #1:")
+    for i, (_, row) in enumerate(top_dramatic_climbs.iterrows(), 1):
+        print(f"{i}. \"{row['track']}\" by {row['artist']} - "
+              f"from #{row['prev_rank']:.0f} to #1 (jump of {row['jump_size']:.0f} positions) "
+              f"in Week {row['week']} of Month {month_names[row['month']]}")
+    
+    # Create visualization
+    plt.figure(figsize=(14, 10))  # Increased height for 7 entries
+    
+    # Create labels with artist name
+    labels = [f"{track}\n{artist}" for track, artist in zip(top_dramatic_climbs['track'], top_dramatic_climbs['artist'])]
+    
+    bars = plt.barh(labels, top_dramatic_climbs['jump_size'], color=colors[2])
+    plt.title('Top 5 most dramatic climbs to #1', fontsize=14)
+    plt.xlabel('Positions Gained', fontsize=12)
+    plt.gca().invert_yaxis()  # Put most dramatic at top
+    
+    # Add detailed labels with position change
+    for i, (_, row) in enumerate(top_dramatic_climbs.iterrows()):
+        plt.text(row['jump_size'] + 0.5, i,
+                 f"+{row['jump_size']:.0f} positions (#{row['prev_rank']:.0f} ? #1)", 
+                 va='center', fontsize=10)
+    
+    plt.tight_layout()
+    plt.savefig('figures/most_dramatic_climbs_to_no1.png')
+
+# Most dramatic drops from #1
+print("\n=== Most dramatic drops from #1 ===")
+
+# Find all instances of songs dropping from #1
+dramatic_drops_from_no1 = []
+
+for track in data['track'].unique():
+    track_data = data[data['track'] == track].sort_values('week')
+    
+    # Skip if no chart data
+    if len(track_data) == 0 or track_data['hot100_rank'].isnull().all():
+        continue
+    
+    # Find all weeks where the song drops from #1
+    for i in range(1, len(track_data)):
+        curr_week = track_data.iloc[i]
+        prev_week = track_data.iloc[i-1]
+        
+        # Check if previous week was #1 and this week is worse (higher number = worse rank)
+        if (prev_week['hot100_rank'] == 1 and 
+            curr_week['hot100_rank'] > 1):
+            
+            # Calculate drop size (positions dropped)
+            drop_size = curr_week['hot100_rank'] - 1
+            
+            # If fell off chart, use a fixed large value
+            if curr_week['hot100_rank'] == 0:
+                drop_size = 99
+
+            dramatic_drops_from_no1.append({
+                'track': track,
+                'artist': track_data['artist'].iloc[0],
+                'new_rank': curr_week['hot100_rank'],
+                'drop_size': drop_size,
+                'week': curr_week['week'],
+                'month': curr_week['month']
+            })
+
+# Get top 5 most dramatic drops
+if dramatic_drops_from_no1:
+    drops_df = pd.DataFrame(dramatic_drops_from_no1)
+    
+    # Sort by drop size (most dramatic first)
+    top_dramatic_drops = drops_df.sort_values('drop_size', ascending=False).head(5)
+    
+    print("\nTop 5 Most Dramatic Drops from #1:")
+    for i, (_, row) in enumerate(top_dramatic_drops.iterrows(), 1):
+        # Handle off-chart case
+        if row['new_rank'] == 0:
+            rank_text = "off chart"
+        else:
+            rank_text = f"#{row['new_rank']:.0f}"
+            
+        print(f"{i}. \"{row['track']}\" by {row['artist']} - "
+              f"from #1 to {rank_text} (drop of {row['drop_size']:.0f} positions) "
+              f"in Week {row['week']} of Month {month_names[row['month']]}")
+    
+    # Create visualization
+    plt.figure(figsize=(14, 8))
+    
+    # Create labels with artist name
+    labels = [f"{track}\n{artist}" for track, artist in zip(top_dramatic_drops['track'], top_dramatic_drops['artist'])]
+    
+    bars = plt.barh(labels, top_dramatic_drops['drop_size'], color=colors[0])
+    plt.title('Top 5 most dramatic drops from #1', fontsize=14)
+    plt.xlabel('Positions Lost', fontsize=12)
+    plt.gca().invert_yaxis()  # Put most dramatic at top
+    
+    # Add detailed labels
+    for i, (_, row) in enumerate(top_dramatic_drops.iterrows()):
+        # Handle off-chart case
+        if row['new_rank'] == 0:
+            rank_text = "off chart"
+        else:
+            rank_text = f"#{row['new_rank']:.0f}"
+            
+        plt.text(row['drop_size'] + 1, i,
+                 f"-{row['drop_size']:.0f} positions (#1 ? {rank_text})", 
+                 va='center', fontsize=10)
+    
+    plt.tight_layout()
+    plt.savefig('figures/most_dramatic_drops_from_no1.png')
+
+#######################################
+# 7. CORRELATION ANALYSIS
+#######################################
+print("\n" + "="*50)
+print("7. CORRELATION ANALYSIS")
+print("="*50)
+
+# Select numeric columns for correlation, excluding last_week columns
+corr_cols = [col for col in numeric_cols if 'last' not in col]
+
+# Compute correlation matrix
+corr_matrix = data[corr_cols].corr()
+
+# Plot correlation heatmap (split into smaller chunks for readability)
+def plot_correlation_chunks(corr_matrix, max_cols=15):
+    num_cols = len(corr_matrix.columns)
+    num_chunks = (num_cols + max_cols - 1) // max_cols
+    
+    for i in range(num_chunks):
+        start_idx = i * max_cols
+        end_idx = min((i + 1) * max_cols, num_cols)
+        
+        chunk_cols = corr_matrix.columns[start_idx:end_idx]
+        chunk = corr_matrix.loc[chunk_cols, chunk_cols]
+        
+        plt.figure(figsize=(16, 14))
+        mask = np.triu(np.ones_like(chunk, dtype=bool))
+        sns.heatmap(chunk, mask=mask, annot=True, fmt=".2f", cmap='coolwarm', 
+                   vmin=-1, vmax=1, square=True)
+        plt.title(f'Correlation matrix (chunk {i+1}/{num_chunks})', fontsize=14)
+        plt.tight_layout()
+        plt.savefig(f'figures/correlation_matrix_chunk{i+1}.png')
+
+# Plot correlation matrix in chunks
+plot_correlation_chunks(corr_matrix)
+
+# Correlation between platform rankings specifically
+rank_cols = [col for col in numeric_cols if 'rank' in col and 'last' not in col]
+rank_corr = data[rank_cols].corr()
+
+plt.figure(figsize=(12, 10))
+sns.heatmap(rank_corr, annot=True, fmt=".2f", cmap='coolwarm', vmin=-1, vmax=1, square=True)
+plt.title('Correlation between platform rankings', fontsize=14)
+plt.tight_layout()
+plt.savefig('figures/rank_correlation.png')
+
+# Calculate correlation with hot100_rank
+target_corr = data[numeric_cols].corr()['hot100_rank'].sort_values(ascending=False)
+
+print("\nTop 10 features correlated with Hot 100 rank:")
+print(target_corr.head(11))  # Include hot100_rank itself
+
+# Plot top 10 correlations with hot100_rank - REVISED to put most correlated at the top
+plt.figure(figsize=(14, 10))
+top_corrs = target_corr[1:11]  # Skip the self-correlation, take top 10
+bars = plt.barh(top_corrs.index[::-1], top_corrs.values[::-1], color=colors[0])  # Reverse order
+plt.title('Top 10 features correlated with Hot 100 rank', fontsize=14)
+plt.xlabel('Correlation Coefficient', fontsize=12)
+plt.grid(axis='x', linestyle='--', alpha=0.7)
+
+# Add value labels
+for bar in bars:
+    width = bar.get_width()
+    plt.text(width + 0.01, bar.get_y() + bar.get_height()/2,
+             f'{width:.2f}', va='center', fontsize=9)
+
+plt.tight_layout()
+plt.savefig('figures/hot100_correlations.png')
+
+#######################################
+# 8. TEMPORAL ANALYSIS - NEW ENTRIES
+#######################################
+print("\n" + "="*50)
+print("8. TEMPORAL ANALYSIS - NEW ENTRIES")
+print("="*50)
+
+# New entries by month
+data['is_new'] = (data['hot100_woc'] == 1).astype(int)
+monthly_new = data[data['is_new'] == 1].groupby('month').size()
+
+print("\nNew entries to Hot 100 by month:")
+for month, count in monthly_new.items():
+    print(f"Month {month_names[month]}: {count} new entries")
+
+# Plot monthly new entries
+plt.figure(figsize=(12, 7))
+bars = plt.bar([month_names[m] for m in monthly_new.index], 
+               monthly_new.values, color=colors[0])
+plt.title('New entries to Hot 100 by month', fontsize=14)
+plt.ylabel('Count', fontsize=12)
+plt.xlabel('Month', fontsize=12)
+
+# Add value labels
+for bar in bars:
+    height = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2, height + 1,
+             f'{height}', ha='center', fontsize=10)
+
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.tight_layout()
+plt.savefig('figures/monthly_new_entries.png')
+
+# New entries by week with improved labels
+weekly_new = data[data['is_new'] == 1].groupby(['month', 'week']).size().reset_index(name='count')
+
+# Add annual week number and week of month
+weekly_new['week_of_month'] = weekly_new.groupby('month')['week'].rank().astype(int)
+weekly_new['label'] = weekly_new.apply(
+    lambda x: f"{month_names[x['month']]} W{x['week_of_month']} (W{x['week']})", axis=1)
+
+plt.figure(figsize=(16, 7))
+plt.plot(range(len(weekly_new)), weekly_new['count'], marker='o', color=colors[0], linewidth=2)
+
+# Improved x-axis labels
+plt.xticks(range(0, len(weekly_new), 4), 
+           weekly_new['label'][::4], 
+           rotation=45, fontsize=10)
+plt.title('New entries to Hot 100 by week', fontsize=14)
+plt.ylabel('Number of new entries', fontsize=12)
+plt.xlabel('Week', fontsize=12)
+
+# Add value labels for peaks
+peaks = weekly_new[weekly_new['count'] > weekly_new['count'].quantile(0.75)]
+for _, peak in peaks.iterrows():
+    idx = weekly_new[(weekly_new['month'] == peak['month']) & (weekly_new['week'] == peak['week'])].index[0]
+    plt.text(idx, peak['count'] + 0.5, f"{peak['count']}", ha='center', fontsize=9)
+
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.tight_layout()
+plt.savefig('figures/weekly_new_entries.png')
+
+#######################################
+# 9. TRAJECTORY ANALYSIS - SELECTED SONGS
+#######################################
+print("\n" + "="*50)
+print("9. TRAJECTORY ANALYSIS")
+print("="*50)
+
+# For #1 songs, use these specific selections
+no1_songs = ["We Can't Be Friends (Wait For Your Love)", "Texas Hold 'Em", "Too Sweet", "All I Want For Christmas Is You"]
+
+print(f"\nSelected 4 songs for trajectory analysis:")
+for i, song in enumerate(no1_songs, 1):
+    artist = data[data['track'] == song]['artist'].iloc[0]
+    print(f"{i}. {song} by {artist}")
+
+# For each platform, create a separate trajectory chart for these 4 songs
+for platform in platforms:
+    plt.figure(figsize=(14, 8))
+    
+    # Plot each song separately with distinct colors
+    for i, song in enumerate(no1_songs):
+        # Get song data for this platform
+        song_data = data[data['track'] == song].sort_values('week')
+        
+        # Filter out rank=0 entries (not on chart)
+        valid_data = song_data[song_data[f'{platform}_rank'] > 0]
+        
+        # Only plot if song appears on this platform
+        if len(valid_data) > 0:
+            # Use actual weeks for x-axis
+            weeks = valid_data['week'].values
+            ranks = valid_data[f'{platform}_rank'].values
+            
+            # Calculate weeks on chart
+            woc = len(valid_data)
+            
+            # Plot trajectory with a distinct color
+            artist = song_data['artist'].iloc[0]
+            plt.plot(weeks, ranks, marker='o', 
+                     label=f"{song} - {artist} (WOC: {woc})",
+                     color=distinct_colors[i], 
+                     linewidth=2.5)
+    
+    # Draw horizontal line at #1 position
+    plt.axhline(y=1, color='r', linestyle='--', label='#1 Position')
+    
+    # Set y-axis limits based on the chart size
+    if platform == 'hot100':
+        plt.ylim(0.5, 100.5)
+    elif platform == 'radio' or platform == 'streaming':
+        plt.ylim(0.5, 50.5)
+    elif platform == 'sales':
+        plt.ylim(0.5, 25.5)
+    elif platform == 'apple':
+        plt.ylim(0.5, 100.5)
+    elif platform == 'spotify':
+        plt.ylim(0.5, 200.5)
+    
+    plt.gca().invert_yaxis()  # Invert y-axis to have #1 at the top
+    plt.title(f'Trajectory of selected Hot 100 #1 songs on {platform_names[platform]} chart', fontsize=14)
+    plt.xlabel('Week of year', fontsize=12)
+    plt.ylabel(f'{platform_names[platform]} rank', fontsize=12)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.grid(True, alpha=0.7)
+    plt.tight_layout()
+    plt.savefig(f'figures/selected_songs_trajectory_{platform}.png')
+
+#######################################
+# 10. TRAJECTORY ANALYSIS BY PEAK PERFORMANCE - WITH ACTUAL WEEKS
+#######################################
+print("\n" + "="*50)
+print("10. TRAJECTORY ANALYSIS BY PEAK PERFORMANCE")
+print("="*50)
+
+# Define performance categories
+categories = {
+    'Top 10': (1, 10),
+    'Top 25': (11, 25),
+    'Top 50': (26, 50),
+    'Top 75': (51, 75),
+    'Top 100': (76, 100)
+}
+
+# For Top 10 category, use specific songs instead of random selection
+top10_songs = ["Snooze", "Water", "Greedy", "Espresso"]
+
+# Function to get 4 random songs that peaked in a specific range
+def get_category_songs(data, min_rank, max_rank, n=4, min_weeks=5):
+    # Get songs that peaked in this range and have sufficient data
+    qualified_songs = []
+    
+    for track in data['track'].unique():
+        track_data = data[data['track'] == track]
+        
+        # Check for sufficient chart presence
+        valid_data = track_data[track_data['hot100_rank'] > 0]
+        if len(valid_data) < min_weeks:
+            continue
+            
+        # Check if peak is in the desired range
+        peak_rank = track_data['hot100_rank'].min()
+        if min_rank <= peak_rank <= max_rank:
+            qualified_songs.append(track)
+    
+    # Randomly select n songs
+    if len(qualified_songs) > n:
+        return np.random.choice(qualified_songs, n, replace=False)
+    return qualified_songs
+
+# Set random seed for reproducibility
+np.random.seed(42)
+
+# Create a separate plot for each category
+for category, (min_rank, max_rank) in categories.items():
+    # For Top 10, use predefined songs
+    if category == 'Top 10':
+        category_songs = top10_songs
+    else:
+        # Get 4 random songs from this category
+        category_songs = get_category_songs(data, min_rank, max_rank, n=4)
+    
+    # If we found songs, create chart
+    if len(category_songs) > 0:
+        plt.figure(figsize=(14, 8))
+        
+        # Plot each song with distinct colors
+        for i, song in enumerate(category_songs):
+            # Get song data
+            song_data = data[data['track'] == song].sort_values('week')
+            
+            # Filter out rank=0 entries (not on chart)
+            valid_data = song_data[song_data['hot100_rank'] > 0]
+            
+            # Plot trajectory
+            if len(valid_data) > 0:
+                # Use actual weeks for x-axis
+                weeks = valid_data['week'].values
+                ranks = valid_data['hot100_rank'].values
+                
+                artist = song_data['artist'].iloc[0]
+                peak_rank = song_data['hot100_rank'].min()
+                woc = len(valid_data)
+                label = f"{song} - {artist} (peak: #{peak_rank}, WOC: {woc})"
+                
+                # Use distinct colors from the palette
+                plt.plot(weeks, ranks, marker='o', label=label, 
+                         color=distinct_colors[i], linewidth=2.5)
+        
+        # Set y-axis limits for Hot 100
+        plt.ylim(0.5, 100.5)
+        
+        plt.gca().invert_yaxis()  # Invert y-axis to have #1 at the top
+        plt.title(f'Trajectories of 4 songs that peaked in {category} on Hot 100', fontsize=14)
+        plt.xlabel('Week of year', fontsize=12)
+        plt.ylabel('Hot 100 rank', fontsize=12)
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
+        plt.grid(True, alpha=0.7)
+        plt.tight_layout()
+        plt.savefig(f'figures/trajectory_{category.replace(" ", "_").lower()}.png')
+        
+        print(f"\nSelected 4 songs that peaked in {category}:")
+        for i, song in enumerate(category_songs, 1):
+            artist = data[data['track'] == song]['artist'].iloc[0]
+            peak = data[data['track'] == song]['hot100_rank'].min()
+            woc = len(data[(data['track'] == song) & (data['hot100_rank'] > 0)])
+            print(f"{i}. {song} by {artist} (peak: #{peak}, WOC: {woc})")
+
+print("\nAnalysis complete! All figures saved in the 'figures' directory.")
+2
+
+

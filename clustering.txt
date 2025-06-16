@@ -1,0 +1,564 @@
+pip install dtaidistance
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
+from dtaidistance import dtw
+from scipy.spatial.distance import squareform
+from sklearn.metrics import silhouette_score
+import os
+
+# Create clustering directory if it doesn't exist
+if not os.path.exists('clustering'):
+    os.makedirs('clustering')
+
+# Load data
+print("Loading data from final.csv...")
+df = pd.read_csv("final.csv")
+print(f"Loaded {len(df)} rows with {len(df['track'].unique())} unique tracks")
+
+# FORCE holiday songs into their own cluster using the EXACT list provided
+def force_holiday_cluster(df):
+    # Exact list of holiday songs as provided
+    holiday_songs = {
+        "Rockin' Around The Christmas Tree",
+        "All I Want For Christmas Is You",
+        "Jingle Bell Rock",
+        "Last Christmas",
+        "A Holly Jolly Christmas",
+        "It's The Most Wonderful Time Of The Year",
+        "Let It Snow! Let It Snow! Let It Snow!",
+        "Feliz Navidad",
+        "Sleigh Ride",
+        "Santa Tell Me",
+        "The Christmas Song (Merry Christmas To You)",
+        "Underneath The Tree",
+        "White Christmas (1947)",
+        "Christmas (Baby Please Come Home)",
+        "Jingle Bells",
+        "Blue Christmas",
+        "Santa Baby",
+        "Here Comes Santa Claus (Right Down Santa Claus Lane)",
+        "Run Rudolph Run",
+        "It's Beginning To Look A Lot Like Christmas",
+        "Wonderful Christmastime",
+        "Please Come Home For Christmas",
+        "Santa Claus Is Comin' To Town",
+        "You're A Mean One, Mr. Grinch",
+        "This Christmas",
+        "Mistletoe",
+        "Happy Holiday / The Holiday Season",
+        "Christmastime Is Here",
+        "Like It's Christmas",
+        "Have Yourself A Merry Little Christmas",
+        "Happy Xmas (War Is Over)",
+        "I Saw Mommy Kissing Santa Claus",
+        "Rudolph The Red-Nosed Reindeer",
+        "Merry Christmas",
+        "(There's No Place Like) Home For The Holidays (1954)",
+        "DJ Play A Christmas Song"
+    }
+    
+    # Create holiday track identifier
+    is_holiday = {}
+    for track in df['track'].unique():
+        is_holiday[track] = track in holiday_songs
+    
+    return is_holiday, holiday_songs
+
+# Get holiday tracks dictionary
+is_holiday_dict, holiday_songs = force_holiday_cluster(df)
+holiday_tracks = [track for track in df['track'].unique() if is_holiday_dict[track]]
+print(f"Identified {len(holiday_tracks)} holiday songs")
+
+# Extract trajectories with separate handling for holiday songs
+def extract_song_trajectories(df, min_weeks=6, max_weeks=20, is_holiday_dict=None):
+    trajectories = []
+    track_info = []
+    
+    for track in df['track'].unique():
+        track_df = df[df['track'] == track].sort_values('week')
+        
+        if len(track_df) >= min_weeks:
+            # Extract trajectory (position over time)
+            sequence = track_df['hot100_rank'].values[:min(len(track_df), max_weeks)]
+            
+            # Ensure rank values are valid (between 1-100)
+            sequence = np.clip(sequence, 1, 100)
+            
+            # Determine if it's a holiday song (binary value)
+            is_holiday = 1 if is_holiday_dict.get(track, False) else 0
+            
+            # For binary flags, use first value
+            is_collab = track_df['is_collab'].iloc[0]
+            is_top_artist = track_df['is_top_artist'].iloc[0]
+            is_top_label = track_df['is_top_label'].iloc[0]
+            
+            # Store track metadata with ALL required fields
+            track_metadata = {
+                'track': track,
+                'artist': track_df['artist'].iloc[0],
+                'peak_position': track_df['hot100_peak'].iloc[0],
+                'weeks_on_chart': track_df['hot100_woc'].max(),
+                'trajectory_length': len(sequence),
+                'hot100_change': track_df['hot100_change'].mean(),
+                'hot100_growth_rate': track_df['hot100_growth_rate'].mean(),
+                'hot100_acceleration': track_df['hot100_acceleration'].mean(),
+                'platform_divergence': track_df['platform_divergence'].mean(),
+                'available_platforms': track_df['available_platforms'].iloc[0],
+                'is_collab': is_collab,
+                'is_top_artist': is_top_artist,
+                'is_top_label': is_top_label,
+                'is_holiday_song': is_holiday,
+                'is_holiday_season': track_df['is_holiday_season'].iloc[0],
+                'is_summer_season': track_df['is_summer_season'].iloc[0],
+                'is_award_season': track_df['is_award_season'].iloc[0]
+            }
+            
+            trajectories.append(sequence)
+            track_info.append(track_metadata)
+    
+    return trajectories, pd.DataFrame(track_info)
+
+# Extract trajectories with all metadata
+print("Extracting trajectories...")
+trajectories, track_info = extract_song_trajectories(df, min_weeks=4, is_holiday_dict=is_holiday_dict)
+print(f"Extracted {len(trajectories)} trajectories for clustering")
+
+# Split holiday and non-holiday tracks
+holiday_indices = [i for i, row in track_info.iterrows() if row['is_holiday_song'] == 1]
+non_holiday_indices = [i for i, row in track_info.iterrows() if row['is_holiday_song'] == 0]
+
+print(f"Splitting into {len(holiday_indices)} holiday tracks and {len(non_holiday_indices)} non-holiday tracks")
+
+# Extract non-holiday trajectories for clustering
+non_holiday_trajectories = [trajectories[i] for i in non_holiday_indices]
+
+# Calculate DTW distances for non-holiday tracks only
+n = len(non_holiday_trajectories)
+distance_matrix = np.zeros((n, n))
+
+print("Calculating DTW distances for non-holiday tracks...")
+for i in range(n):
+    for j in range(i+1, n):
+        distance = dtw.distance(non_holiday_trajectories[i], non_holiday_trajectories[j])
+        distance_matrix[i, j] = distance
+        distance_matrix[j, i] = distance  # Matrix is symmetric
+    
+    if i % 50 == 0:
+        print(f"Processed {i}/{n} trajectories")
+
+# Convert to condensed form for scipy
+condensed_dist = squareform(distance_matrix)
+
+# Perform hierarchical clustering on non-holiday tracks
+print("Performing hierarchical clustering on non-holiday tracks...")
+Z = linkage(condensed_dist, method='ward')
+
+# Check silhouette score for 5 clusters to validate the choice
+num_clusters = 5  # We'll use exactly 5 non-holiday clusters as requested
+clusters = fcluster(Z, num_clusters, criterion='maxclust')
+
+try:
+    score = silhouette_score(distance_matrix, clusters, metric='precomputed')
+    print(f"Using {num_clusters} clusters, Silhouette score: {score:.4f}")
+except:
+    print(f"Using {num_clusters} clusters (could not calculate silhouette score)")
+
+# Create final clusters array with holiday tracks as a separate cluster
+final_clusters = np.zeros(len(track_info), dtype=int)
+
+# Assign holiday tracks to last cluster (num_clusters + 1)
+for i in holiday_indices:
+    final_clusters[i] = num_clusters + 1
+
+# Assign non-holiday tracks to clusters 1-num_clusters
+for i, idx in enumerate(non_holiday_indices):
+    final_clusters[idx] = clusters[i]
+
+# Add cluster information to track_info
+track_info['cluster'] = final_clusters
+
+# Calculate statistics for each cluster to match them with the desired categories
+cluster_stats = {}
+for cluster_id in track_info['cluster'].unique():
+    cluster_df = track_info[track_info['cluster'] == cluster_id]
+    
+    # Basic stats
+    peak_pos = cluster_df['peak_position'].mean()
+    weeks = cluster_df['weeks_on_chart'].mean()
+    
+    # Calculate trajectory patterns
+    cluster_tracks = list(cluster_df['track'])
+    
+    # Calculate trajectory shape (rising, falling, steady)
+    first_half_changes = []
+    second_half_changes = []
+    overall_changes = []
+    
+    for track in cluster_tracks:
+        track_df = df[df['track'] == track].sort_values('week')
+        ranks = track_df['hot100_rank'].values[:20]
+        ranks = np.clip(ranks, 1, 100)  # Fix any invalid ranks
+        
+        if len(ranks) >= 4:
+            # Get first half and second half average changes
+            mid_point = len(ranks) // 2
+            
+            # Overall trajectory from start to end
+            if len(ranks) > 1:
+                overall_change = ranks[-1] - ranks[0]
+                overall_changes.append(overall_change)
+            
+            # First half changes (negative = improving rank)
+            first_diffs = np.diff(ranks[:mid_point])
+            first_half_changes.append(np.mean(first_diffs))
+            
+            # Second half changes
+            if mid_point < len(ranks):
+                second_diffs = np.diff(ranks[mid_point:])
+                second_half_changes.append(np.mean(second_diffs))
+    
+    first_half_avg = np.mean(first_half_changes) if first_half_changes else 0
+    second_half_avg = np.mean(second_half_changes) if second_half_changes else 0
+    overall_avg = np.mean(overall_changes) if overall_changes else 0
+    
+    # Count tracks in each peak/run category to determine dominant profile
+    small_peak_count = sum((cluster_df['peak_position'] <= 20))
+    medium_peak_count = sum((cluster_df['peak_position'] > 20) & (cluster_df['peak_position'] <= 50))
+    big_peak_count = sum((cluster_df['peak_position'] > 50))
+    
+    long_run_count = sum((cluster_df['weeks_on_chart'] > 20))
+    short_run_count = sum((cluster_df['weeks_on_chart'] <= 19))
+    
+    # Determine if it's a climbing pattern (overall improving rank)
+    is_climbing = overall_avg < -5  # Negative change means improving rank
+    
+    # Determine if it's a steady pattern (not much change)
+    is_steady = abs(overall_avg) < 10
+    
+    # Store all stats for category assignment
+    cluster_stats[cluster_id] = {
+        'peak_pos': peak_pos,
+        'weeks': weeks,
+        'size': len(cluster_df),
+        'first_half_change': first_half_avg,
+        'second_half_change': second_half_avg,
+        'overall_change': overall_avg,
+        'is_climbing': is_climbing,
+        'is_steady': is_steady,
+        'small_peak_pct': 100 * small_peak_count / len(cluster_df) if len(cluster_df) > 0 else 0,
+        'medium_peak_pct': 100 * medium_peak_count / len(cluster_df) if len(cluster_df) > 0 else 0,
+        'big_peak_pct': 100 * big_peak_count / len(cluster_df) if len(cluster_df) > 0 else 0,
+        'long_run_pct': 100 * long_run_count / len(cluster_df) if len(cluster_df) > 0 else 0,
+        'short_run_pct': 100 * short_run_count / len(cluster_df) if len(cluster_df) > 0 else 0
+    }
+
+# Map clusters to the requested categories
+def map_clusters_to_categories(cluster_stats):
+    # Default category for holiday cluster
+    max_cluster = max(cluster_stats.keys())
+    categories = {max_cluster: "Holiday Hits"}
+    
+    # Define the categories we want to assign
+    category_names = [
+        "Superstar Hits",    # Low peak (good rank), long run
+        "Shooting Stars",    # Low peak, short run
+        "Steady Hits",       # Consistent position
+        "Chart Climbers",    # Improving rank over time
+        "Brief Visitors"     # Short time on chart
+    ]
+    
+    # Create scores for each cluster for each category
+    category_scores = {}
+    for cluster_id in [c for c in cluster_stats if c != max_cluster]:
+        stats = cluster_stats[cluster_id]
+        
+        # Calculate scores for each category
+        superstar_score = (100 - stats['peak_pos']) * stats['weeks'] / 100
+        shooting_score = (100 - stats['peak_pos']) * (1 - stats['weeks']/40)
+        steady_score = stats['is_steady'] * (1 - abs(stats['peak_pos'] - 30)/50)
+        climber_score = stats['is_climbing'] * (1 - stats['peak_pos']/100)
+        brief_score = (stats['short_run_pct']/100) * (stats['peak_pos']/100)
+        
+        category_scores[cluster_id] = {
+            "Superstar Hits": superstar_score,
+            "Shooting Stars": shooting_score,
+            "Steady Hits": steady_score,
+            "Chart Climbers": climber_score,
+            "Brief Visitors": brief_score
+        }
+    
+    # Assign each category to the most suitable cluster
+    for category in category_names:
+        # Find which cluster scores highest for this category
+        best_cluster = max([c for c in category_scores], 
+                          key=lambda x: category_scores[x][category])
+        
+        # Assign this category to this cluster
+        categories[best_cluster] = category
+        
+        # Remove this cluster from consideration for other categories
+        if best_cluster in category_scores:
+            del category_scores[best_cluster]
+    
+    # Create order mapping
+    order_map = {
+        "Superstar Hits": 1,
+        "Shooting Stars": 2,
+        "Steady Hits": 3,
+        "Chart Climbers": 4,
+        "Brief Visitors": 5,
+        "Holiday Hits": 6
+    }
+    
+    # Create display order based on category names
+    display_order = {}
+    for cluster_id, category in categories.items():
+        display_order[cluster_id] = order_map[category]
+    
+    return categories, display_order
+
+# Map clusters to categories
+category_map, display_order = map_clusters_to_categories(cluster_stats)
+print("Clusters mapped to categories:")
+for cluster_id, category in category_map.items():
+    print(f"  Cluster {cluster_id}: {category} - Avg Peak: {cluster_stats[cluster_id]['peak_pos']:.1f}, Avg Weeks: {cluster_stats[cluster_id]['weeks']:.1f}")
+
+# Apply category labels to dataframe
+track_info['category'] = track_info['cluster'].map(category_map)
+track_info['display_order'] = track_info['cluster'].map(display_order)
+
+# Order clusters for display
+sorted_clusters = sorted(display_order.keys(), key=lambda x: display_order[x])
+
+# Add clusters to original dataset
+cluster_dict = dict(zip(track_info['track'], track_info['cluster']))
+category_dict = dict(zip(track_info['track'], track_info['category']))
+df['trajectory_cluster'] = df['track'].map(cluster_dict)
+df['category'] = df['track'].map(category_dict)
+
+# Generate visualization with the specified categories
+print("Generating visualization...")
+fig, axes = plt.subplots(2, 3, figsize=(22, 15))
+axes = axes.flatten()
+
+# Use vibrant but distinct colors
+colors = ['#FF0000', '#00AA00', '#0000FF', '#FF9900']  # Red, Green, Blue, Orange
+
+# Create plots with specified categories
+for i, cluster_id in enumerate(sorted_clusters):
+    if i >= len(axes):
+        break  # No more room in grid
+    
+    idx = i  # Grid position
+    category = category_map[cluster_id]
+    
+    # Get tracks in this cluster
+    cluster_df = track_info[track_info['cluster'] == cluster_id]
+    
+    # Calculate average trajectory
+    avg_trajectory = np.zeros(20)
+    count = np.zeros(20)
+    
+    for track in cluster_df['track'].values:
+        track_df = df[df['track'] == track].sort_values('week')
+        ranks = track_df['hot100_rank'].values[:20]
+        
+        # Ensure rank values are valid (between 1-100)
+        ranks = np.clip(ranks, 1, 100)
+        
+        for j, rank in enumerate(ranks):
+            avg_trajectory[j] += rank
+            count[j] += 1
+    
+    # Avoid division by zero
+    for j in range(20):
+        if count[j] > 0:
+            avg_trajectory[j] /= count[j]
+    
+    # Display average with solid black line - plot FIRST so it's behind other lines
+    axes[idx].plot(range(20), avg_trajectory, 'k-', linewidth=2.5, label='Average Trajectory')
+    
+    # Display EXACTLY 4 top tracks with dotted lines
+    # First sort by peak to get the best performing tracks
+    top_tracks = cluster_df.sort_values('peak_position').head(min(4, len(cluster_df)))['track'].values
+    
+    for j, track in enumerate(top_tracks):
+        track_df = df[df['track'] == track].sort_values('week')
+        
+        # Ensure rank values are valid (between 1-100)
+        track_df['hot100_rank'] = np.clip(track_df['hot100_rank'], 1, 100)
+        
+        weeks = range(len(track_df['hot100_rank']))
+        artist = track_df['artist'].iloc[0]
+        
+        # Keep only the first 20 chars of track name to avoid long labels
+        short_track = track[:20] + "..." if len(track) > 20 else track
+        short_artist = artist[:15] + "..." if len(artist) > 15 else artist
+        
+        # Use color index modulo len(colors) to avoid index errors
+        color_idx = j % len(colors)
+        
+        # Use dotted lines with standard colors and increased visibility
+        axes[idx].plot(weeks, track_df['hot100_rank'], 
+                     color=colors[color_idx], 
+                     linestyle=':', 
+                     linewidth=1.8,
+                     label=f"{short_track} - {short_artist}")
+    
+    # Add peak and weeks stats in one corner together
+    avg_peak = cluster_stats[cluster_id]['peak_pos']
+    avg_woc = cluster_stats[cluster_id]['weeks']
+    
+    # Combined stats box in one corner
+    axes[idx].text(0.03, 0.06, f"Avg Peak: {avg_peak:.1f}   Avg WOC: {avg_woc:.1f}", 
+                 transform=axes[idx].transAxes, 
+                 fontsize=10, 
+                 bbox=dict(facecolor='white', alpha=0.9, edgecolor='gray'))
+    
+    axes[idx].invert_yaxis()  # Invert Y axis so better ranks are at top
+    axes[idx].set_title(category, fontsize=14)
+    axes[idx].set_xlabel('Weeks')
+    axes[idx].set_ylabel('Hot 100 Position')
+    axes[idx].grid(True, alpha=0.3)  # Lighter grid
+    
+    # Move legend to bottom right corner of each chart
+    axes[idx].legend(loc='lower right', fontsize=9, framealpha=0.9, ncol=1)
+    
+    # Set consistent limits for all plots
+    axes[idx].set_ylim([100, 1])  # Make sure y-axis only goes from 100 to 1
+    axes[idx].set_xlim([0, 20])
+
+# Increase the spacing between subplots
+plt.subplots_adjust(hspace=0.4, wspace=0.3)
+plt.tight_layout()
+plt.savefig('clustering/trajectories_final.png', dpi=300, bbox_inches='tight')
+plt.close()
+print("Saved visualization to clustering/trajectories_final.png")
+
+# ADDITIONAL VISUALIZATION: COMPARE COLLABS VS SOLO TRACKS
+print("Generating collab vs solo visualization...")
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
+
+# Prepare data
+collab_tracks = track_info[track_info['is_collab'] == 1]
+solo_tracks = track_info[track_info['is_collab'] == 0]
+
+# Plot collaborative tracks
+avg_collab = np.zeros(20)
+count_collab = np.zeros(20)
+
+for track in collab_tracks['track'].values:
+    track_df = df[df['track'] == track].sort_values('week')
+    ranks = track_df['hot100_rank'].values[:20]
+    ranks = np.clip(ranks, 1, 100)
+    
+    # Add individual track with low opacity
+    ax1.plot(range(len(ranks)), ranks, 'b-', alpha=0.05)
+    
+    # Add to average calculation
+    for j, rank in enumerate(ranks):
+        avg_collab[j] += rank
+        count_collab[j] += 1
+
+# Calculate and plot average for collabs
+for j in range(20):
+    if count_collab[j] > 0:
+        avg_collab[j] /= count_collab[j]
+
+ax1.plot(range(20), avg_collab, 'b-', linewidth=3, label='Average (Collabs)')
+ax1.invert_yaxis()
+ax1.set_title(f'Collaborative Tracks (n={len(collab_tracks)})', fontsize=16)
+ax1.set_xlabel('Weeks')
+ax1.set_ylabel('Hot 100 Position')
+ax1.grid(True, alpha=0.3)
+ax1.set_ylim([100, 1])
+ax1.set_xlim([0, 20])
+
+# Add stats
+avg_peak_collab = collab_tracks['peak_position'].mean()
+avg_woc_collab = collab_tracks['weeks_on_chart'].mean()
+ax1.text(0.05, 0.05, f"Avg Peak: {avg_peak_collab:.1f}   Avg WOC: {avg_woc_collab:.1f}", 
+         transform=ax1.transAxes, fontsize=12, 
+         bbox=dict(facecolor='white', alpha=0.9, edgecolor='gray'))
+
+# Plot solo tracks
+avg_solo = np.zeros(20)
+count_solo = np.zeros(20)
+
+for track in solo_tracks['track'].values:
+    track_df = df[df['track'] == track].sort_values('week')
+    ranks = track_df['hot100_rank'].values[:20]
+    ranks = np.clip(ranks, 1, 100)
+    
+    # Add individual track with low opacity
+    ax2.plot(range(len(ranks)), ranks, 'r-', alpha=0.05)
+    
+    # Add to average calculation
+    for j, rank in enumerate(ranks):
+        avg_solo[j] += rank
+        count_solo[j] += 1
+
+# Calculate and plot average for solo tracks
+for j in range(20):
+    if count_solo[j] > 0:
+        avg_solo[j] /= count_solo[j]
+
+ax2.plot(range(20), avg_solo, 'r-', linewidth=3, label='Average (Solo)')
+ax2.invert_yaxis()
+ax2.set_title(f'Solo Tracks (n={len(solo_tracks)})', fontsize=16)
+ax2.set_xlabel('Weeks')
+ax2.set_ylabel('Hot 100 Position')
+ax2.grid(True, alpha=0.3)
+ax2.set_ylim([100, 1])
+ax2.set_xlim([0, 20])
+
+# Add stats
+avg_peak_solo = solo_tracks['peak_position'].mean()
+avg_woc_solo = solo_tracks['weeks_on_chart'].mean()
+ax2.text(0.05, 0.05, f"Avg Peak: {avg_peak_solo:.1f}   Avg WOC: {avg_woc_solo:.1f}", 
+         transform=ax2.transAxes, fontsize=12, 
+         bbox=dict(facecolor='white', alpha=0.9, edgecolor='gray'))
+
+plt.tight_layout()
+plt.savefig('clustering/collab_vs_solo.png', dpi=300)
+plt.close()
+print("Saved collab vs solo visualization to clustering/collab_vs_solo.png")
+
+# Analyze cluster characteristics
+print("Analyzing cluster characteristics...")
+numerical_vars = ['peak_position', 'weeks_on_chart', 'hot100_change', 
+                  'hot100_growth_rate', 'hot100_acceleration', 'platform_divergence', 
+                  'available_platforms']
+
+binary_vars = ['is_collab', 'is_top_artist', 'is_top_label', 'is_holiday_song', 
+               'is_holiday_season', 'is_summer_season', 'is_award_season']
+
+agg_dict = {var: 'mean' for var in numerical_vars}
+agg_dict.update({var: lambda x: 100 * sum(x) / len(x) for var in binary_vars})
+agg_dict['track'] = 'count'  # Number of tracks in cluster
+
+cluster_analysis = track_info.groupby('cluster').agg(agg_dict).reset_index()
+cluster_analysis['category'] = cluster_analysis['cluster'].map(category_map)
+cluster_analysis['display_order'] = cluster_analysis['cluster'].map(display_order)
+
+# Sort by display order
+cluster_analysis = cluster_analysis.sort_values('display_order')
+
+# Rename columns for binary variables
+for var in binary_vars:
+    cluster_analysis = cluster_analysis.rename(columns={var: f"{var}_pct"})
+
+# Display complete analysis
+print("\nCluster Analysis:")
+print(cluster_analysis[['cluster', 'category', 'track', 'peak_position', 'weeks_on_chart', 
+                        'hot100_growth_rate', 'is_holiday_song_pct', 'is_top_artist_pct']])
+
+# Save results
+track_info.to_csv('clustering/track_clusters_final.csv', index=False)
+cluster_analysis.to_csv('clustering/cluster_analysis_final.csv', index=False)
+print("\nClustering analysis complete!")
+2
+
+

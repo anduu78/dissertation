@@ -1,0 +1,785 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from statsmodels.tsa.stattools import grangercausalitytests
+import networkx as nx
+from tqdm import tqdm
+import warnings
+import os
+warnings.filterwarnings('ignore')
+
+# Create causality folder for outputs if it doesn't exist
+os.makedirs("causality", exist_ok=True)
+print("Created 'causality' folder for outputs")
+
+# Load the full dataset
+df = pd.read_csv("final.csv")
+
+# Load the clusters dataset
+track_clusters = pd.read_csv("track_clusters_final.csv")
+
+# Match tracks between datasets using both track and artist
+df_with_clusters = pd.merge(
+    df, 
+    track_clusters[['track', 'artist', 'category', 'cluster']], 
+    on=['track', 'artist'], 
+    how='left'
+)
+
+print(f"Full dataset: {len(df)} rows")
+print(f"After merging with clusters: {len(df_with_clusters)} rows")
+print(f"Number of unique tracks in merged data: {df_with_clusters['track'].nunique()}")
+print(f"Number of tracks with cluster assignments: {df_with_clusters.dropna(subset=['cluster'])['track'].nunique()}")
+
+# Define the platforms for analysis
+platforms = ['hot100_rank', 'radio_rank', 'sales_rank', 'streaming_rank', 'apple_rank', 'spotify_rank']
+
+# Platform name mapping for better display (used throughout the code)
+platform_display_names = {
+    'hot100': 'Hot 100',
+    'radio': 'Radio',
+    'sales': 'Sales',
+    'streaming': 'Streaming',
+    'spotify': 'Spotify',
+    'apple': 'Apple Music'
+}
+
+# Create a function to run Granger causality tests
+def run_granger_causality(data, cause_col, effect_col, max_lag=4):
+    """
+    Run Granger causality test to see if cause_col Granger-causes effect_col
+    
+    Parameters:
+    -----------
+    data: DataFrame containing the columns
+    cause_col: Potential causal variable
+    effect_col: Potential effect variable
+    max_lag: Maximum lag to test (default: 4 weeks)
+    
+    Returns:
+    -----------
+    min_p_value: Minimum p-value across all lags
+    optimal_lag: Lag with the lowest p-value
+    """
+    
+    if cause_col == effect_col:
+        return None, None
+    
+    # Create test data with the two columns
+    test_data = data[[cause_col, effect_col]].dropna()
+    
+    # Ensure we have enough data for the test
+    if len(test_data) <= max_lag + 1:
+        return None, None
+    
+    try:
+        # Run Granger causality test
+        gc_res = grangercausalitytests(test_data, maxlag=max_lag, verbose=False)
+        
+        # Extract p-values for each lag (using Wald test p-values)
+        p_values = [gc_res[lag][0]['ssr_ftest'][1] for lag in range(1, max_lag+1)]
+        
+        # Find minimum p-value and corresponding lag
+        min_p_value = min(p_values)
+        optimal_lag = p_values.index(min_p_value) + 1
+        
+        return min_p_value, optimal_lag
+    
+    except Exception as e:
+        print(f"Error testing {cause_col} ? {effect_col}: {e}")
+        return None, None
+
+# Create a dictionary to store results by track
+causality_results = {}
+
+# Create a results matrix for the aggregate analysis
+results_matrix = {
+    'Cause': [],
+    'Effect': [],
+    'p_value': [],
+    'optimal_lag': [],
+    'significant': []
+}
+
+# First approach: Aggregate analysis across all tracks with sufficient data
+print("Running aggregate causality analysis...")
+
+# Group tracks with at least 8 consecutive weeks of data
+valid_tracks = []
+for track_name in df['track'].unique():
+    track_data = df[df['track'] == track_name].sort_values('week')
+    if len(track_data) >= 8:  # Need minimum data for meaningful lag analysis
+        valid_tracks.append(track_name)
+
+print(f"Found {len(valid_tracks)} tracks with sufficient data for analysis")
+
+# Combine all valid track data for aggregate analysis
+combined_data = pd.DataFrame()
+for track_name in valid_tracks:
+    track_data = df[df['track'] == track_name].sort_values('week')
+    # Normalize ranks to account for different absolute positions
+    normalized_data = track_data[platforms].rank(pct=True)
+    normalized_data['track'] = track_name
+    normalized_data['week'] = track_data['week'].values
+    combined_data = pd.concat([combined_data, normalized_data])
+
+# Run causality tests for all platform pairs
+for cause in tqdm(platforms, desc="Testing causal relationships"):
+    for effect in platforms:
+        if cause != effect:
+            p_value, lag = run_granger_causality(combined_data, cause, effect)
+            
+            if p_value is not None:
+                results_matrix['Cause'].append(cause.replace('_rank', ''))
+                results_matrix['Effect'].append(effect.replace('_rank', ''))
+                results_matrix['p_value'].append(p_value)
+                results_matrix['optimal_lag'].append(lag)
+                results_matrix['significant'].append(p_value < 0.05)
+
+# Convert results to DataFrame for easier analysis
+results_df = pd.DataFrame(results_matrix)
+
+# Apply platform name mapping
+results_df['Cause Platform'] = results_df['Cause'].map(platform_display_names)
+results_df['Effect Platform'] = results_df['Effect'].map(platform_display_names)
+
+# Sort by significance and p-value
+results_df = results_df.sort_values(['significant', 'p_value'], ascending=[False, True])
+
+# Print the significant causal relationships
+print("\nSignificant causal relationships (p < 0.05):")
+significant_results = results_df[results_df['significant']]
+print(significant_results)
+
+# Save results to CSV with display names
+results_csv = results_df.copy()
+results_csv['Cause'] = results_csv['Cause Platform']
+results_csv['Effect'] = results_csv['Effect Platform']
+results_csv = results_csv.drop(['Cause Platform', 'Effect Platform'], axis=1)
+results_csv.to_csv("causality/granger_causality_results.csv", index=False)
+print("Saved causality results to 'causality/granger_causality_results.csv'")
+
+# Create a heatmap of p-values
+def create_causality_heatmap(results):
+    """Create a heatmap showing the strength of causal relationships"""
+    
+    # Create a matrix of p-values using display names
+    platforms_display = [platform_display_names[p.replace('_rank', '')] for p in platforms]
+    p_value_matrix = np.ones((len(platforms_display), len(platforms_display)))
+    
+    # Fill the matrix with p-values
+    for _, row in results.iterrows():
+        from_idx = platforms_display.index(row['Cause Platform'])
+        to_idx = platforms_display.index(row['Effect Platform'])
+        p_value_matrix[from_idx, to_idx] = row['p_value']
+    
+    # Create the heatmap
+    plt.figure(figsize=(10, 8))
+    mask = np.eye(len(platforms_display), dtype=bool)  # Mask the diagonal
+    
+    # Create the heatmap without borders
+    heatmap = sns.heatmap(p_value_matrix, mask=mask, 
+                          xticklabels=platforms_display, yticklabels=platforms_display,
+                          cmap='coolwarm_r', vmin=0, vmax=0.05,
+                          annot=True, fmt='.3f', linewidths=0)
+    
+    plt.title('Granger Causality p-values (Cause ? Effect)', fontsize=14)
+    plt.xlabel('Effect Platform', fontsize=12)
+    plt.ylabel('Causal Platform', fontsize=12)
+    plt.xticks(rotation=0)  # Horizontal text
+    plt.yticks(rotation=0)  # Horizontal text for y-axis
+    
+    plt.tight_layout()
+    plt.savefig('causality/granger_causality_heatmap.png', dpi=300)
+    plt.close()
+    print("Saved heatmap to 'causality/granger_causality_heatmap.png'")
+
+# Create a network diagram of causal relationships
+def create_causality_network(results):
+    """Create a directed network diagram showing significant causal relationships"""
+    
+    # Create a directed graph
+    G = nx.DiGraph()
+    
+    # Add nodes with display names
+    for platform, display_name in platform_display_names.items():
+        G.add_node(display_name)
+    
+    # Add edges for significant relationships
+    significant = results[results['significant']]
+    for _, row in significant.iterrows():
+        G.add_edge(row['Cause Platform'], row['Effect Platform'], 
+                  weight=1-row['p_value'],  # Convert p-value to strength
+                  lag=row['optimal_lag'])
+    
+    # Set up the visualization
+    plt.figure(figsize=(10, 8))
+    
+    # Position nodes in a circle
+    pos = nx.circular_layout(G)
+    
+    # Define edge weights
+    edge_weights = [G[u][v]['weight'] * 5 for u, v in G.edges()]
+    
+    # Define node sizes based on centrality
+    centrality = nx.degree_centrality(G)
+    node_sizes = [centrality[node] * 3000 + 500 for node in G.nodes()]
+    
+    # Use the same color for all nodes
+    node_color = 'skyblue'
+    
+    # Define edge labels (optimal lags)
+    edge_labels = {(u, v): f"Lag: {G[u][v]['lag']}" for u, v in G.edges()}
+    
+    # Draw the network
+    nx.draw_networkx_nodes(G, pos, node_size=node_sizes, node_color=node_color, alpha=0.8)
+    nx.draw_networkx_labels(G, pos, font_size=12, font_weight='bold')
+    nx.draw_networkx_edges(G, pos, width=edge_weights, alpha=0.7, edge_color='gray',
+                         connectionstyle='arc3,rad=0.2', arrowsize=20)
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=10)
+    
+    plt.title('Causal Network of Music Platforms', fontsize=14)
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig('causality/causality_network.png', dpi=300)
+    plt.close()
+    print("Saved network diagram to 'causality/causality_network.png'")
+
+# Analyze optimal lags by platform pairs
+def analyze_optimal_lags(results):
+    """Analyze and visualize the optimal lags for each causal relationship"""
+    
+    significant = results[results['significant']]
+    
+    # Group by causal platform and calculate average optimal lag
+    lag_by_platform = significant.groupby('Cause Platform')['optimal_lag'].mean().sort_values()
+    
+    # Original color mapping (from the screenshot)
+    color_map = {
+        'Apple Music': '#1f77b4',  # Blue
+        'Radio': '#ff7f0e',        # Orange
+        'Sales': '#2ca02c',        # Green
+        'Spotify': '#d62728',      # Red
+        'Streaming': '#9467bd'     # Purple
+    }
+    
+    # Create a bar chart of average optimal lags
+    plt.figure(figsize=(10, 6))
+    
+    # Get colors for each platform
+    colors = [color_map.get(platform, 'gray') for platform in lag_by_platform.index]
+    
+    # Plot with platform-specific colors
+    ax = lag_by_platform.plot(kind='bar', color=colors)
+    
+    plt.title('Average Optimal Lag by Causal Platform', fontsize=14)
+    plt.xlabel('Causal Platform', fontsize=12)
+    plt.ylabel('Average Optimal Lag (weeks)', fontsize=12)
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.xticks(rotation=0)  # Horizontal text
+    plt.yticks(rotation=0)  # Horizontal text for y-axis
+    plt.legend([], frameon=False)  # Remove legend
+    plt.tight_layout()
+    plt.savefig('causality/average_optimal_lags.png', dpi=300)
+    plt.close()
+    print("Saved average lags chart to 'causality/average_optimal_lags.png'")
+    
+    # Create a heatmap of optimal lags
+    lag_matrix = pd.pivot_table(
+        significant,
+        values='optimal_lag',
+        index='Cause Platform',
+        columns='Effect Platform',
+        aggfunc='mean'
+    ).fillna(0)
+    
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(lag_matrix, annot=True, cmap='YlGnBu', fmt='.1f', linewidths=0)
+    plt.title('Optimal Lag by Platform Relationship (weeks)', fontsize=14)
+    plt.xticks(rotation=0)  # Horizontal text
+    plt.yticks(rotation=0)  # Horizontal text for y-axis
+    plt.tight_layout()
+    plt.savefig('causality/optimal_lag_heatmap.png', dpi=300)
+    plt.close()
+    print("Saved lag heatmap to 'causality/optimal_lag_heatmap.png'")
+
+# Run the visualization functions
+create_causality_heatmap(results_df)
+create_causality_network(results_df)
+analyze_optimal_lags(results_df)
+
+# Second approach: Analyze by cluster category
+print("\nAnalyzing causal patterns by cluster category...")
+
+# Create a function to analyze causality by cluster
+def analyze_by_cluster():
+    """Analyze Granger causality patterns by cluster category"""
+    
+    cluster_results = {}
+    
+    for category in df_with_clusters['category'].unique():
+        if pd.isnull(category):
+            continue
+            
+        print(f"\nAnalyzing cluster: {category}")
+        
+        # Get tracks in this cluster
+        category_tracks = df_with_clusters[df_with_clusters['category'] == category]['track'].unique()
+        
+        # Ensure we have enough tracks
+        if len(category_tracks) < 5:
+            print(f"  Too few tracks ({len(category_tracks)}) for analysis")
+            continue
+            
+        # Combine data for tracks in this cluster
+        cluster_data = pd.DataFrame()
+        valid_tracks = 0
+        
+        for track_name in category_tracks:
+            track_data = df_with_clusters[df_with_clusters['track'] == track_name].sort_values('week')
+            if len(track_data) >= 6:  # Need minimum data
+                normalized_data = track_data[platforms].rank(pct=True)
+                normalized_data['track'] = track_name
+                normalized_data['week'] = track_data['week'].values
+                cluster_data = pd.concat([cluster_data, normalized_data])
+                valid_tracks += 1
+        
+        print(f"  Using {valid_tracks} tracks with sufficient data")
+        
+        if valid_tracks < 5:
+            print("  Too few valid tracks for reliable analysis")
+            continue
+            
+        # Run Granger tests for this cluster
+        cluster_matrix = {
+            'Cause': [],
+            'Effect': [],
+            'p_value': [],
+            'optimal_lag': [],
+            'significant': []
+        }
+        
+        for cause in platforms:
+            for effect in platforms:
+                if cause != effect:
+                    p_value, lag = run_granger_causality(cluster_data, cause, effect)
+                    
+                    if p_value is not None:
+                        cluster_matrix['Cause'].append(cause.replace('_rank', ''))
+                        cluster_matrix['Effect'].append(effect.replace('_rank', ''))
+                        cluster_matrix['p_value'].append(p_value)
+                        cluster_matrix['optimal_lag'].append(lag)
+                        cluster_matrix['significant'].append(p_value < 0.05)
+        
+        # Store results for this cluster
+        cluster_results[category] = pd.DataFrame(cluster_matrix)
+        
+        # Add display names
+        cluster_results[category]['Cause Platform'] = cluster_results[category]['Cause'].map(platform_display_names)
+        cluster_results[category]['Effect Platform'] = cluster_results[category]['Effect'].map(platform_display_names)
+        
+        # Save cluster-specific results
+        results_csv = cluster_results[category].copy()
+        results_csv['Cause'] = results_csv['Cause Platform']
+        results_csv['Effect'] = results_csv['Effect Platform']
+        results_csv = results_csv.drop(['Cause Platform', 'Effect Platform'], axis=1)
+        results_csv.to_csv(f"causality/granger_causality_{category.replace(' ', '_').lower()}.csv", index=False)
+        print(f"  Saved results to 'causality/granger_causality_{category.replace(' ', '_').lower()}.csv'")
+        
+        # Print significant relationships
+        sig_results = cluster_results[category][cluster_results[category]['significant']]
+        print(f"  Found {len(sig_results)} significant causal relationships")
+        if len(sig_results) > 0:
+            print(sig_results[['Cause Platform', 'Effect Platform', 'p_value', 'optimal_lag']].sort_values('p_value'))
+    
+    return cluster_results
+
+# Run cluster analysis
+cluster_causality = analyze_by_cluster()
+
+# Compare causality patterns across clusters
+def compare_clusters(cluster_results):
+    """Create a comparison of causality patterns across different clusters"""
+    
+    # Count significant relationships by cluster
+    comparison = {}
+    
+    # Get all unique from_platform ? to_platform combinations
+    all_relationships = set()
+    for category, results in cluster_results.items():
+        sig_results = results[results['significant']]
+        for _, row in sig_results.iterrows():
+            all_relationships.add((row['Cause'], row['Effect']))
+    
+    # Initialize comparison dict
+    for rel in all_relationships:
+        from_display = platform_display_names[rel[0]]
+        to_display = platform_display_names[rel[1]]
+        comparison[f"{from_display}?{to_display}"] = {}
+    
+    # Fill in p-values for each cluster
+    for category, results in cluster_results.items():
+        sig_results = results[results['significant']]
+        
+        for rel in all_relationships:
+            from_display = platform_display_names[rel[0]]
+            to_display = platform_display_names[rel[1]]
+            rel_str = f"{from_display}?{to_display}"
+            
+            # Find this relationship in the results
+            rel_data = sig_results[
+                (sig_results['Cause'] == rel[0]) & 
+                (sig_results['Effect'] == rel[1])
+            ]
+            
+            if len(rel_data) > 0:
+                comparison[rel_str][category] = {
+                    'p_value': rel_data['p_value'].values[0],
+                    'lag': rel_data['optimal_lag'].values[0]
+                }
+            else:
+                comparison[rel_str][category] = {
+                    'p_value': None,
+                    'lag': None
+                }
+    
+    # Convert to DataFrame for easier visualization
+    comparison_df = pd.DataFrame({
+        'relationship': list(comparison.keys()),
+        **{category: [comparison[rel][category]['p_value'] for rel in comparison] 
+           for category in cluster_results.keys()}
+    })
+    
+    # Sort by number of significant clusters
+    comparison_df['sig_count'] = comparison_df.iloc[:, 1:].notna().sum(axis=1)
+    comparison_df = comparison_df.sort_values('sig_count', ascending=False)
+    
+    # Save comparison results
+    comparison_df.to_csv("causality/cluster_comparison.csv", index=False)
+    print("Saved cluster comparison to 'causality/cluster_comparison.csv'")
+    
+    # Create a heatmap of p-values across clusters
+    plt.figure(figsize=(12, len(comparison_df) * 0.5))
+    
+    # Create mask for missing values
+    mask = comparison_df.iloc[:, 1:-1].isna()
+    
+    sns.heatmap(comparison_df.iloc[:, 1:-1], 
+                cmap='YlOrRd_r', 
+                vmin=0, vmax=0.05,
+                annot=True, fmt='.3f',
+                mask=mask,
+                linewidths=0,
+                yticklabels=comparison_df['relationship'])
+    
+    plt.title('Comparison of Causal Relationships Across Clusters', fontsize=14)
+    plt.xticks(rotation=0)  # Horizontal text
+    plt.yticks(rotation=0)  # Horizontal text for y-axis
+    plt.tight_layout()
+    plt.savefig('causality/cluster_comparison_heatmap.png', dpi=300)
+    plt.close()
+    print("Saved cluster comparison heatmap to 'causality/cluster_comparison_heatmap.png'")
+    
+    return comparison_df
+
+# Run cluster comparison if we have results for multiple clusters
+if len(cluster_causality) > 1:
+    comparison_results = compare_clusters(cluster_causality)
+    print("\nComparison of causal relationships across clusters:")
+    print(comparison_results.head())
+else:
+    print("\nNot enough clusters with significant results for comparison")
+
+# Create cluster-specific network diagrams
+def create_cluster_networks(cluster_results):
+    """Create network diagrams for each cluster"""
+    
+    for category, results in cluster_results.items():
+        significant = results[results['significant']]
+        
+        if len(significant) < 1:
+            print(f"No significant relationships in {category} cluster")
+            continue
+            
+        # Create a directed graph
+        G = nx.DiGraph()
+        
+        # Add nodes with display names
+        for platform, display_name in platform_display_names.items():
+            G.add_node(display_name)
+        
+        # Add edges for significant relationships
+        for _, row in significant.iterrows():
+            G.add_edge(row['Cause Platform'], row['Effect Platform'], 
+                     weight=1-row['p_value'],
+                     lag=row['optimal_lag'])
+        
+        # Set up the visualization
+        plt.figure(figsize=(10, 8))
+        
+        # Position nodes in a circle
+        pos = nx.circular_layout(G)
+        
+        # Define edge weights
+        edge_weights = [G[u][v]['weight'] * 5 for u, v in G.edges()]
+        
+        # Define node sizes based on centrality
+        centrality = nx.degree_centrality(G)
+        node_sizes = [centrality[node] * 3000 + 500 for node in G.nodes()]
+        
+        # Use the same color for all nodes
+        node_color = 'skyblue'
+        
+        # Define edge labels (optimal lags)
+        edge_labels = {(u, v): f"Lag: {G[u][v]['lag']}" for u, v in G.edges()}
+        
+        # Draw the network
+        nx.draw_networkx_nodes(G, pos, node_size=node_sizes, node_color=node_color, alpha=0.8)
+        nx.draw_networkx_labels(G, pos, font_size=12, font_weight='bold')
+        nx.draw_networkx_edges(G, pos, width=edge_weights, alpha=0.7, edge_color='gray',
+                             connectionstyle='arc3,rad=0.2', arrowsize=20)
+        nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=10)
+        
+        plt.title(f'Causal Network: {category}', fontsize=14)
+        plt.axis('off')
+        plt.tight_layout()
+        plt.savefig(f'causality/causality_network_{category.replace(" ", "_").lower()}.png', dpi=300)
+        plt.close()
+        print(f"Saved network diagram for {category} to 'causality/causality_network_{category.replace(' ', '_').lower()}.png'")
+
+# Create cluster-specific networks
+create_cluster_networks(cluster_causality)
+
+print("\nAnalysis complete! All visualizations have been saved to the 'causality' folder.")
+
+##############################################################
+# SECTION FOR EASY INTERPRETATION
+##############################################################
+print("\nGenerating easy-to-interpret visualizations...")
+
+# Collect lags and p-values for relationships to Hot100 for each cluster
+easy_data = {
+    'cluster': [],
+    'Cause': [],
+    'Effect': [],
+    'lag': [],
+    'p_value': [],
+    'significant': []
+}
+
+# Extract all relationships to Hot100 from analyzed clusters
+for category, results in cluster_causality.items():
+    for _, row in results.iterrows():
+        if row['Effect'] == 'hot100':
+            easy_data['cluster'].append(category)
+            easy_data['Cause'].append(row['Cause'])
+            easy_data['Effect'].append(row['Effect'])
+            easy_data['lag'].append(row['optimal_lag'])
+            easy_data['p_value'].append(row['p_value'])
+            easy_data['significant'].append(row['p_value'] < 0.05)
+
+# Convert to DataFrame
+easy_df = pd.DataFrame(easy_data)
+
+# Apply mapping to dataframe
+easy_df['Cause Platform'] = easy_df['Cause'].map(platform_display_names)
+easy_df['Effect Platform'] = easy_df['Effect'].map(platform_display_names)
+
+# 1. Generate pivot table for lags to Hot100
+lags_table = pd.pivot_table(
+    easy_df,
+    values='lag',
+    index='cluster',
+    columns='Cause Platform',
+    aggfunc='mean'
+)
+
+# Handle null values - replacing with NaN instead of 0 to distinguish missing relationships
+lags_table_display = lags_table.fillna('--')  # For display/export
+lags_table_for_plot = lags_table.copy()   # For plotting, keep NaNs for now
+
+# Save table as CSV
+lags_table_display.to_csv('causality/easy_lags_to_hot100.csv')
+print("Saved simplified lag table to 'causality/easy_lags_to_hot100.csv'")
+
+# Original color mapping (from the screenshot)
+color_map = {
+    'Apple Music': '#1f77b4',  # Blue
+    'Radio': '#ff7f0e',        # Orange
+    'Sales': '#2ca02c',        # Green
+    'Spotify': '#d62728',      # Red
+    'Streaming': '#9467bd'     # Purple
+}
+
+# Create a comprehensive lag table function
+def create_comprehensive_lag_table(input_platforms=None):
+    """Creates a complete table with all optimal lags, including statistically non-significant ones"""
+    # Use global platforms variable if not provided
+    if input_platforms is None:
+        input_platforms = platforms
+    
+    all_lags_data = {
+        'cluster': [],
+        'Cause': [],
+        'Effect': [], 
+        'lag': [],
+        'p_value': [],
+        'significant': []
+    }
+    
+    # For each cluster, extract ALL relationships to Hot100
+    for category, results in cluster_causality.items():
+        # Get all results for Hot100, not just significant ones
+        all_platform_pairs = [(p1.replace('_rank', ''), p2.replace('_rank', '')) 
+                            for p1 in input_platforms for p2 in input_platforms if p1 != p2]
+        
+        # Filter for Hot100 as target
+        hot100_pairs = [(p1, p2) for p1, p2 in all_platform_pairs if p2 == 'hot100']
+        
+        # Get existing results
+        for p1, p2 in hot100_pairs:
+            result_rows = results[(results['Cause'] == p1) & (results['Effect'] == p2)]
+            
+            if len(result_rows) > 0:
+                # We have a result for this pair
+                row = result_rows.iloc[0]
+                all_lags_data['cluster'].append(category)
+                all_lags_data['Cause'].append(p1)
+                all_lags_data['Effect'].append(p2)
+                all_lags_data['lag'].append(row['optimal_lag'])
+                all_lags_data['p_value'].append(row['p_value'])
+                all_lags_data['significant'].append(row['p_value'] < 0.05)
+            else:
+                # No result for this pair, use default values
+                all_lags_data['cluster'].append(category)
+                all_lags_data['Cause'].append(p1)
+                all_lags_data['Effect'].append(p2)
+                all_lags_data['lag'].append(2)  # Default lag of 2 weeks
+                all_lags_data['p_value'].append(1.0)  # Default p-value (not significant)
+                all_lags_data['significant'].append(False)
+    
+    # Convert to DataFrame
+    all_lags_df = pd.DataFrame(all_lags_data)
+    
+    # Add display names
+    all_lags_df['Cause Platform'] = all_lags_df['Cause'].map(platform_display_names)
+    
+    # Create the pivot table for display
+    full_lag_table = pd.pivot_table(
+        all_lags_df,
+        values='lag',
+        index='cluster',
+        columns='Cause Platform',
+        aggfunc='mean'
+    ).fillna(2).astype(int)  # Fill missing with default value
+    
+    # Save the complete table
+    full_lag_table.to_csv('causality/comprehensive_lags_to_hot100.csv')
+    print("Saved complete lag table to 'causality/comprehensive_lags_to_hot100.csv'")
+    
+    # Create a corresponding p-value table
+    pval_table = pd.pivot_table(
+        all_lags_df,
+        values='p_value',
+        index='cluster',
+        columns='Cause Platform',
+        aggfunc='mean'
+    ).fillna(1.0)
+    
+    pval_table.to_csv('causality/comprehensive_pvalues_to_hot100.csv')
+    
+    # Create significance table (boolean)
+    sig_table = pd.pivot_table(
+        all_lags_df,
+        values='significant',
+        index='cluster',
+        columns='Cause Platform',
+        aggfunc='max'  # Use max to ensure True takes precedence
+    ).fillna(False)
+    
+    # GRAPH: Comprehensive p-values heatmap
+    plt.figure(figsize=(12, 8))
+    
+    # Create a mask for p-values > 0.05
+    non_sig_mask = pval_table > 0.05
+    
+    # Plot the heatmap without borders
+    ax = sns.heatmap(pval_table, annot=True, fmt='.3f', cmap='YlOrRd_r', vmax=0.05, linewidths=0)
+    
+    # Add light gray hatching with a less dense pattern
+    for i in range(pval_table.shape[0]):
+        for j in range(pval_table.shape[1]):
+            if non_sig_mask.iloc[i, j]:
+                ax.add_patch(plt.Rectangle((j, i), 1, 1, fill=False, 
+                                         hatch='//', edgecolor='#D3D3D3', linewidth=0))
+    
+    plt.title('P-values for Influence on Hot 100\n(hatched cells = not statistically significant)', fontsize=14)
+    plt.xlabel('Cause Platform')
+    plt.ylabel('Cluster')
+    plt.xticks(rotation=0)  # Horizontal text
+    plt.yticks(rotation=0)  # Horizontal text for y-axis
+    plt.tight_layout()
+    plt.savefig('causality/comprehensive_pvalues_heatmap.png', dpi=300)
+    print("Saved comprehensive p-values heatmap to 'causality/comprehensive_pvalues_heatmap.png'")
+    
+    # GRAPH: Comprehensive lag chart
+    # Get the colors for each platform
+    platform_colors = [color_map.get(col, 'gray') for col in full_lag_table.columns]
+    
+    # Create figure for the bar chart
+    fig, ax = plt.subplots(figsize=(14, 8))
+    
+    # Create clean bars without hatching for legend
+    handles = []
+    for i, col in enumerate(full_lag_table.columns):
+        # Create a simple rectangle for the legend
+        handle = plt.Rectangle((0,0), 1, 1, color=platform_colors[i], label=col)
+        handles.append(handle)
+    
+    # Plot each platform separately with the correct colors
+    bar_width = 0.15
+    x = np.arange(len(full_lag_table.index))
+    
+    for i, col in enumerate(full_lag_table.columns):
+        # Position bars side by side
+        pos = x + (i - len(full_lag_table.columns)/2 + 0.5) * bar_width
+        
+        # Create bars for this platform
+        bars = ax.bar(pos, full_lag_table[col], width=bar_width, color=platform_colors[i], label=col)
+        
+        # Add hatching to non-significant bars only
+        for j, cluster in enumerate(full_lag_table.index):
+            if not sig_table.loc[cluster, col]:
+                # Only add hatching if this specific bar represents non-significant relationship
+                bars[j].set_hatch('//')
+                bars[j].set_edgecolor('#D3D3D3')  # Light gray hatching
+                bars[j].set_linewidth(0)  # No border
+    
+    # Set x-axis labels and other formatting
+    ax.set_xticks(x)
+    ax.set_xticklabels(full_lag_table.index, rotation=0)
+    ax.set_xlabel('Cluster', fontsize=12)
+    ax.set_ylabel('Lag (weeks)', fontsize=12)
+    plt.yticks(rotation=0)  # Horizontal text for y-axis
+    ax.set_title('Optimal Lags to Influence Hot 100\n(hatched bars = not statistically significant)', fontsize=14)
+    ax.grid(axis='y', linestyle='--', alpha=0.7)
+    
+    # Add legend using our clean handles
+    ax.legend(handles, full_lag_table.columns, title='Cause Platform', loc='upper left')
+    
+    # Save the figure
+    plt.tight_layout()
+    plt.savefig('causality/comprehensive_lags_chart.png', dpi=300)
+    plt.close()
+    print("Saved comprehensive lag chart to 'causality/comprehensive_lags_chart.png'")
+    
+    return full_lag_table, pval_table
+
+# Run the function to create comprehensive tables
+full_lag_table, full_pval_table = create_comprehensive_lag_table()
+
+print("\nAnalysis complete! Easy-to-interpret visualizations saved to 'causality' folder.")
+2
+
+

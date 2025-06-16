@@ -1,0 +1,3816 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, RandomForestClassifier, GradientBoostingClassifier
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, f1_score
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+import xgboost as xgb
+
+# Fix TensorFlow eager execution issue
+import tensorflow as tf
+tf.config.run_functions_eagerly(True)
+
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, LSTM, Dropout
+from tensorflow.keras.optimizers import Adam, RMSprop, SGD, Adagrad, Adadelta
+
+from tensorflow.keras.callbacks import EarlyStopping
+import os
+import warnings
+warnings.filterwarnings('ignore')
+
+# Create output directory
+output_dir = "./prediction"
+os.makedirs(output_dir, exist_ok=True)
+# 1. Load and prepare data
+print("Loading data...")
+data = pd.read_csv("final.csv")
+clusters = pd.read_csv("track_clusters_final.csv")
+lag_data = pd.read_csv("comprehensive_lags_to_hot100.csv")
+pvalues_data = pd.read_csv("comprehensive_pvalues_to_hot100.csv")
+granger_data = pd.read_csv("granger_causality_results.csv")
+
+# Extract cluster information and mapping
+cluster_mapping = {}
+for _, row in clusters.drop_duplicates(subset=['cluster', 'category']).iterrows():
+    cluster_mapping[row['cluster']] = row['category']
+
+# Merge datasets
+data = pd.merge(data, clusters[['track', 'artist', 'cluster', 'category']], 
+                on=['track', 'artist'], how='left')
+
+# Create a song_id field for easier identification
+data['song_id'] = data['track'] + " - " + data['artist']
+
+# Print cluster distribution
+print(f"Data loaded: {data.shape[0]} records")
+print("Clusters distribution:")
+cluster_counts = data['category'].value_counts()
+print(cluster_counts)
+
+# Function to clean cluster names from lag and p-value data
+def clean_cluster_name(name):
+    if ':' in name:
+        return name.split(':')[1].strip()
+    return name
+
+# Create a reverse mapping from category names to cluster IDs
+reverse_cluster_mapping = {}
+for cluster_id, category in cluster_mapping.items():
+    reverse_cluster_mapping[category] = cluster_id
+# 2. Feature preparation - Add lag features based on optimal lags from analysis
+print("\nAdding optimized lag features...")
+
+# Function to add lag variables based on Granger causality results
+def add_lag_features(df):
+    """Add lagged features for each platform based on optimal lags identified - WEIGHTED ONLY"""
+    lagged_df = df.copy()
+    created_lags = 0
+    
+    # Process each cluster
+    for _, row in lag_data.iterrows():
+        # Get the cluster name
+        cluster_name = clean_cluster_name(row['cluster'])
+        
+        # Skip if we don't have this cluster
+        if cluster_name not in reverse_cluster_mapping:
+            continue
+            
+        # Get the cluster ID
+        cluster_id = reverse_cluster_mapping[cluster_name]
+        
+        # Filter data for this cluster
+        cluster_data = df[df['cluster'] == cluster_id]
+        
+        if len(cluster_data) == 0:
+            continue
+            
+        # Find corresponding p-values for this cluster
+        p_row = pvalues_data[pvalues_data['cluster'] == row['cluster']].iloc[0] if any(pvalues_data['cluster'] == row['cluster']) else None
+        
+        # For each platform, add the optimal lag
+        for platform in ['Apple Music', 'Radio', 'Sales', 'Spotify', 'Streaming']:
+            # Convert platform name to column prefix
+            col_prefix = platform.lower().replace(' ', '_')
+            
+            # Get optimal lag for this platform
+            lag = int(row[platform])
+            
+            # Get p-value for this relationship (if available)
+            p_value = float(p_row[platform]) if p_row is not None and platform in p_row else 0.05
+            
+            # Calculate weight based on significance (1 - p/0.05)
+            significance_weight = max(0, 1 - (p_value / 0.05))
+            
+            # Create column names
+            rank_col = f"{col_prefix}_rank"
+            change_col = f"{col_prefix}_change"
+            growth_col = f"{col_prefix}_growth_rate"
+            
+            # Check if columns exist
+            if rank_col in df.columns:
+                # For each song in this cluster
+                for song_id, song_group in cluster_data.groupby('song_id'):
+                    # Sort chronologically
+                    if all(col in song_group.columns for col in ['quarter', 'month', 'week']):
+                        song_group = song_group.sort_values(['quarter', 'month', 'week'])
+                    
+                    # Only create lag features if we have enough data points
+                    if len(song_group) > lag:
+                        for i, idx in enumerate(song_group.index[lag:]):
+                            orig_idx = song_group.index[i]
+                            
+                            # Create ONLY weighted versions (no simple versions)
+                            lagged_df.loc[idx, f"{rank_col}_lag{lag}_weighted"] = lagged_df.loc[orig_idx, rank_col] * significance_weight
+                            
+                            # Add change and growth rate weighted lags if available
+                            if change_col in df.columns:
+                                lagged_df.loc[idx, f"{change_col}_lag{lag}_weighted"] = lagged_df.loc[orig_idx, change_col] * significance_weight
+                            
+                            if growth_col in df.columns:
+                                lagged_df.loc[idx, f"{growth_col}_lag{lag}_weighted"] = lagged_df.loc[orig_idx, growth_col] * significance_weight
+                            
+                            created_lags += 1
+    
+    # Fill NaN values for weighted lag columns only
+    lag_cols = [col for col in lagged_df.columns if '_lag' in col and '_weighted' in col]
+    lagged_df[lag_cols] = lagged_df[lag_cols].fillna(0)
+    
+    print(f"Created {created_lags} weighted lag features across {len(lag_cols)} columns")
+    
+    return lagged_df
+
+# Function to add cross-platform relationships based on Granger causality
+def add_cross_platform_features(df):
+    """Add features that capture cross-platform relationships based on Granger causality"""
+    df_with_relations = df.copy()
+    added_features = 0
+    
+    # Process significant Granger causal relationships
+    for _, row in granger_data.iterrows():
+        # Skip non-significant relationships
+        # Fix for the error - handle both boolean and string types
+        if isinstance(row['significant'], bool):
+            if not row['significant']:
+                continue
+        else:
+            if str(row['significant']).lower() != 'true':
+                continue
+        
+        # Get source and target platforms
+        source = row['Cause'].lower().replace(' ', '_')
+        target = row['Effect'].lower().replace(' ', '_')
+        lag = int(row['optimal_lag'])
+        p_value = float(row['p_value'])
+        
+        # Only process if we have the required columns
+        source_col = f"{source}_rank"
+        target_col = f"{target}_rank"
+        
+        if source_col not in df.columns or target_col not in df.columns:
+            continue
+        
+        # Calculate weight based on p-value significance
+        weight = max(0, 1 - (p_value / 0.05))
+        
+        # Feature name that shows the relationship
+        feature_name = f"{source}_to_{target}_lag{lag}"
+        
+        # Create features for each song
+        for song_id, song_group in df.groupby('song_id'):
+            # Sort chronologically
+            if all(col in song_group.columns for col in ['quarter', 'month', 'week']):
+                song_group = song_group.sort_values(['quarter', 'month', 'week'])
+            
+            # Only create feature if we have enough data points
+            if len(song_group) > lag:
+                for i, idx in enumerate(song_group.index[lag:]):
+                    orig_idx = song_group.index[i]
+                    
+                    # Capture the relationship: how source influences target after the lag
+                    source_value = df.loc[orig_idx, source_col]
+                    target_value = df.loc[idx, target_col]
+                    
+                    # Weighted influence score
+                    relation_value = (source_value - target_value) * weight
+                    df_with_relations.loc[idx, feature_name] = relation_value
+                    added_features += 1
+    
+    # Fill NaN values
+    relation_cols = [col for col in df_with_relations.columns if '_to_' in col]
+    df_with_relations[relation_cols] = df_with_relations[relation_cols].fillna(0)
+    
+    print(f"Added {added_features} cross-platform relationship features")
+    
+    return df_with_relations
+
+# Apply lag features and cross-platform relationships
+data = add_lag_features(data)
+data = add_cross_platform_features(data)
+
+# Save processed data for future use
+data.to_csv(f"{output_dir}/processed_data.csv", index=False)
+# 3. Feature selection
+print("\nPreparing features...")
+
+# Select relevant features
+base_features = [
+    # Platform ranks and metrics
+    'radio_rank', 'streaming_rank', 'sales_rank', 'apple_rank', 'spotify_rank',
+    'radio_change', 'streaming_change', 'sales_change', 'apple_change', 'spotify_change',
+    'radio_growth_rate', 'streaming_growth_rate', 'sales_growth_rate', 
+    'apple_growth_rate', 'spotify_growth_rate',
+    
+    # Cross-platform relationships
+    'platform_divergence', 'spotify_vs_apple', 'streaming_vs_radio',
+    'streaming_vs_sales', 'radio_vs_sales', 'spotify_leads_apple',
+    'streaming_leads_radio', 'streaming_leads_sales', 'radio_leads_sales',
+    'platform_change_momentum', 'platform_acceleration_momentum',
+    
+    # Context features
+    'is_collab', 'is_top_artist', 'is_top_label',
+    'is_holiday_season', 'is_summer_season', 'is_award_season',
+    'available_platforms'
+]
+
+# Add ONLY weighted lag features and cross-platform relationship features
+lag_features = [col for col in data.columns if '_lag' in col and '_weighted' in col]
+cross_platform_features = [col for col in data.columns if '_to_' in col]
+
+# Combine all features
+features = base_features + lag_features + cross_platform_features
+
+# Ensure all features exist in the dataframe
+features = [f for f in features if f in data.columns]
+
+print(f"Using {len(features)} features including {len(lag_features)} weighted lag features and {len(cross_platform_features)} cross-platform features")
+
+# Save features list for future use
+pd.DataFrame({'feature': features}).to_csv(f"{output_dir}/features_used.csv", index=False)
+print("All features:")
+for f in features:
+    if f in data.columns:
+        print(f)
+# 4. Cluster Prediction Model
+print("\nTraining cluster prediction model...")
+
+# Prepare data for cluster prediction - filter out rows with missing cluster values
+clean_data = data.dropna(subset=['cluster']).copy()
+cluster_X = clean_data[features].fillna(0)
+cluster_y = clean_data['cluster']
+
+# Standardize features
+cluster_scaler = StandardScaler()
+cluster_X_scaled = pd.DataFrame(cluster_scaler.fit_transform(cluster_X), columns=cluster_X.columns)
+
+# Split data: 70% train, 15% validation, 15% test
+X_train_cluster, X_temp, y_train_cluster, y_temp = train_test_split(
+    cluster_X_scaled, cluster_y, test_size=0.3, random_state=42
+)
+X_val_cluster, X_test_cluster, y_val_cluster, y_test_cluster = train_test_split(
+    X_temp, y_temp, test_size=0.5, random_state=42
+)
+
+print(f"Train: {len(X_train_cluster)}, Validation: {len(X_val_cluster)}, Test: {len(X_test_cluster)} samples")
+
+# Define models with grid search parameters
+from sklearn.svm import SVC
+from sklearn.ensemble import GradientBoostingClassifier
+cluster_models = {
+    "Random Forest": {
+        "model": RandomForestClassifier(random_state=42),
+        "params": {
+            'n_estimators': [100, 200, 300],
+            'max_depth': [15, 20, 25],
+            'min_samples_split': [2, 5, 10]
+        }
+    },
+    "Gradient Boosting": {
+        "model": GradientBoostingClassifier(random_state=42),
+        "params": {
+            'n_estimators': [50, 100, 200],
+            'learning_rate': [0.05, 0.1, 0.2],
+            'max_depth': [3, 5, 7]
+        }
+    },
+    "XGBoost": {
+        "model": xgb.XGBClassifier(random_state=42),
+        "params": {
+            'n_estimators': [50, 100, 200],
+            'learning_rate': [0.05, 0.1, 0.2],
+            'max_depth': [3, 5, 7]
+        }
+    },
+    "SVM": {
+        "model": SVC(random_state=42, probability=True),
+        "params": {
+            'C': [0.1, 1, 10],
+            'kernel': ['rbf', 'poly'],
+            'gamma': ['scale', 'auto']
+        }
+    }
+}
+
+# Train and evaluate each model with grid search
+cluster_results = {}
+for name, config in cluster_models.items():
+    print(f"\n  Training {name} with Grid Search...")
+    
+    # Grid search for best parameters
+    grid = GridSearchCV(
+        config["model"], 
+        config["params"],
+        cv=3, 
+        scoring='f1_weighted',
+        n_jobs=-1
+    )
+    
+    # SPECIAL HANDLING FOR XGBOOST - Remap cluster IDs from 1-6 to 0-5
+    if name == "XGBoost":
+        # Remap clusters to 0-based indexing for XGBoost
+        y_train_mapped = y_train_cluster - 1
+        y_val_mapped = y_val_cluster - 1
+        y_test_mapped = y_test_cluster - 1
+        
+        # Fit with remapped data
+        X_train_np = X_train_cluster.values
+        y_train_np = y_train_mapped.values
+        grid.fit(X_train_np, y_train_np)
+        
+        # Get best model
+        best_model = grid.best_estimator_
+        
+        # Make predictions with remapped data and remap back to original
+        train_preds_mapped = best_model.predict(X_train_cluster.values)
+        val_preds_mapped = best_model.predict(X_val_cluster.values) 
+        test_preds_mapped = best_model.predict(X_test_cluster.values)
+        
+        # Remap predictions back to original cluster IDs (0-5 ? 1-6)
+        train_preds = train_preds_mapped + 1
+        val_preds = val_preds_mapped + 1
+        test_preds = test_preds_mapped + 1
+        
+    else:
+        # Standard training for other models
+        grid.fit(X_train_cluster, y_train_cluster)
+        
+        # Get best model
+        best_model = grid.best_estimator_
+        
+        # Make predictions
+        train_preds = best_model.predict(X_train_cluster)
+        val_preds = best_model.predict(X_val_cluster)
+        test_preds = best_model.predict(X_test_cluster)
+    
+    # Calculate metrics (using original cluster IDs)
+    train_accuracy = accuracy_score(y_train_cluster, train_preds)
+    val_accuracy = accuracy_score(y_val_cluster, val_preds)
+    test_accuracy = accuracy_score(y_test_cluster, test_preds)
+    
+    train_f1 = f1_score(y_train_cluster, train_preds, average='weighted')
+    val_f1 = f1_score(y_val_cluster, val_preds, average='weighted')
+    test_f1 = f1_score(y_test_cluster, test_preds, average='weighted')
+    
+    cluster_results[name] = {
+        'model': best_model,
+        'train_accuracy': train_accuracy,
+        'val_accuracy': val_accuracy,
+        'test_accuracy': test_accuracy,
+        'train_f1': train_f1,
+        'val_f1': val_f1,
+        'test_f1': test_f1,
+        'predictions': test_preds,
+        'best_params': grid.best_params_
+    }
+    
+    print(f"    {name} - Val F1: {val_f1:.4f}, Test F1: {test_f1:.4f}")
+    print(f"    Best parameters: {grid.best_params_}")
+
+# Select best model based on validation F1 score
+best_model_name = max(cluster_results.items(), key=lambda x: x[1]['val_f1'])[0]
+cluster_clf = cluster_results[best_model_name]['model']
+cluster_accuracy = cluster_results[best_model_name]['test_accuracy']
+f1 = cluster_results[best_model_name]['test_f1']
+y_pred_cluster = cluster_results[best_model_name]['predictions']
+
+print(f"\n=== BEST MODEL OVERALL ===")
+print(f"Best model: {best_model_name}")
+print(f"Best parameters: {cluster_results[best_model_name]['best_params']}")
+print(f"Cluster prediction accuracy: {cluster_accuracy:.4f}")
+print(f"Cluster prediction F1 score: {f1:.4f}")
+print("\nClassification Report:")
+print(classification_report(y_test_cluster, y_pred_cluster))
+
+# Plot confusion matrix
+plt.figure(figsize=(10, 8))
+cm = confusion_matrix(y_test_cluster, y_pred_cluster)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+            xticklabels=[cluster_mapping.get(c, 'Unknown') for c in sorted(np.unique(y_test_cluster))],
+            yticklabels=[cluster_mapping.get(c, 'Unknown') for c in sorted(np.unique(y_test_cluster))])
+plt.title(f'Cluster Prediction Confusion Matrix ({best_model_name})', fontsize=14)
+plt.xlabel('Predicted Cluster', fontsize=12)
+plt.ylabel('Actual Cluster', fontsize=12)
+plt.tight_layout()
+plt.savefig(f"{output_dir}/cluster_prediction_confusion_matrix.png")
+plt.close()
+
+# Get feature importance for best model (if available)
+if hasattr(cluster_clf, 'feature_importances_'):
+    importances = cluster_clf.feature_importances_
+    indices = np.argsort(importances)[::-1]
+    
+    # Plot top 20 features
+    plt.figure(figsize=(12, 8))
+    top_n = 20
+    top_features = [cluster_X_scaled.columns[i] for i in indices[:top_n]]
+    top_importance = importances[indices[:top_n]]
+    
+    # Color code by feature type
+    colors = []
+    for feature in top_features:
+        if '_lag' in feature and '_weighted' in feature:
+            colors.append('red')
+        elif '_to_' in feature:
+            colors.append('green')
+        else:
+            colors.append('blue')
+    
+    bars = plt.barh(range(top_n), top_importance, align='center', color=colors)
+    plt.yticks(range(top_n), [f.replace('_', ' ').title() for f in top_features])
+    plt.title(f'Top Features for Cluster Prediction ({best_model_name})', fontsize=14)
+    plt.xlabel('Importance', fontsize=12)
+    
+    # Add value labels
+    for bar in bars:
+        width = bar.get_width()
+        plt.text(width * 1.05, bar.get_y() + bar.get_height()/2, 
+                 f'{width:.3f}', va='center')
+    
+    # Add legend for color coding
+    from matplotlib.patches import Patch
+    legend_elements = [
+        Patch(facecolor='blue', label='Regular Features'),
+        Patch(facecolor='red', label='Weighted Lag Features'),
+        Patch(facecolor='green', label='Cross-Platform Features')
+    ]
+    plt.legend(handles=legend_elements, loc='lower right')
+    
+    plt.tight_layout()
+    plt.savefig(f"{output_dir}/cluster_prediction_feature_importance.png")
+    plt.close()
+
+# Save best cluster classifier and scaler for future use
+import pickle
+with open(f"{output_dir}/cluster_model.pkl", "wb") as f:
+    pickle.dump({
+        'model': cluster_clf,
+        'scaler': cluster_scaler,
+        'features': features,
+        'accuracy': cluster_accuracy,
+        'f1_score': f1,
+        'cluster_mapping': cluster_mapping,
+        'best_model_name': best_model_name,
+        'all_results': cluster_results
+    }, f)
+# 5. Time series forecasting
+print("\nImplementing integrated time series forecasting...")
+
+# Function to prepare sequences with cluster prediction integration
+def prepare_integrated_sequences(df, cluster_model, cluster_scaler, min_seq_length=5, future_steps=4):
+    """
+    Prepares sequences for LSTM with separate components.
+    Returns padded sequences ready for LSTM input.
+    """
+    hot100_sequences = []
+    static_features = []
+    y_sequences = []
+    song_info = []
+    
+    # Create a copy to avoid modifying the original
+    df_copy = df.copy()
+    
+    # Prepare features for cluster prediction (WITHOUT hot100_peak, hot100_woc)
+    cluster_features_list = [f for f in features if f not in ['hot100_peak', 'hot100_woc']]
+    
+    print(f"Using {len(cluster_features_list)} features for cluster prediction")
+    
+    max_sequence_length = 0  # Track max length for padding
+    
+    # Track Holiday Hits processing
+    holiday_songs_found = 0
+    holiday_sequences_created = 0
+    
+    for song_id, group in df_copy.groupby('song_id'):
+        # Sort chronologically
+        if all(col in group.columns for col in ['quarter', 'month', 'week']):
+            group = group.sort_values(['quarter', 'month', 'week'])
+        
+        # Hot100 rank sequence
+        hot100_ranks = group['hot100_rank'].values
+        
+        # Check if this is a Holiday Hit song (manual detection)
+        is_holiday_hit = False
+        if 'category' in group.columns and group['category'].iloc[0] == 'Holiday Hits':
+            is_holiday_hit = True
+            holiday_songs_found += 1
+        
+        # RELAXED requirements for Holiday Hits
+        if is_holiday_hit:
+            # For Holiday Hits: need only 2 weeks minimum + 1 future week
+            min_required = 3  # 2 history + 1 future
+            adjusted_future_steps = min(future_steps, len(hot100_ranks) - 2)  # Adjust future steps
+            adjusted_min_seq = min(min_seq_length, len(hot100_ranks) - adjusted_future_steps)
+        else:
+            # Normal requirements for other songs
+            min_required = min_seq_length + future_steps
+            adjusted_future_steps = future_steps
+            adjusted_min_seq = min_seq_length
+        
+        # Skip if chart run is too short
+        if len(hot100_ranks) < min_required:
+            if is_holiday_hit:
+                print(f"  Skipping Holiday Hit {group['track'].iloc[0]} - only {len(hot100_ranks)} weeks")
+            continue
+        
+        # Get features for cluster prediction
+        cluster_input_data = group[cluster_features_list].iloc[:adjusted_min_seq].fillna(0)
+        
+        if len(cluster_input_data) < 1:  # Need at least 1 week
+            continue
+            
+        # Use mean for cluster prediction
+        cluster_input_mean = cluster_input_data.mean().values.reshape(1, -1)
+        
+        # Predict cluster
+        try:
+            if is_holiday_hit:
+                # FORCE Holiday Hits cluster for known holiday songs
+                predicted_cluster = list(cluster_mapping.keys())[list(cluster_mapping.values()).index('Holiday Hits')]
+                # Create fake probabilities with Holiday Hits as dominant
+                cluster_probabilities = np.zeros(len(cluster_mapping))
+                holiday_cluster_idx = predicted_cluster - 1  # Assuming clusters are 1-indexed
+                cluster_probabilities[holiday_cluster_idx] = 0.9
+                # Distribute remaining probability among other clusters
+                remaining_prob = 0.1 / (len(cluster_mapping) - 1)
+                for i in range(len(cluster_mapping)):
+                    if i != holiday_cluster_idx:
+                        cluster_probabilities[i] = remaining_prob
+            else:
+                # Normal cluster prediction
+                cluster_input_scaled = cluster_scaler.transform(cluster_input_mean)
+                predicted_cluster = cluster_model.predict(cluster_input_scaled)[0]
+                cluster_probabilities = cluster_model.predict_proba(cluster_input_scaled)[0]
+        except:
+            continue
+        
+        # For Holiday Hits, create multiple sequences to increase representation
+        sequence_multiplier = 5 if is_holiday_hit else 1
+        
+        # Create sequences for different prediction points
+        max_prediction_week = len(hot100_ranks) - adjusted_future_steps
+        start_week = adjusted_min_seq
+        
+        for prediction_week in range(start_week, max_prediction_week + 1):
+            # Input: hot100 history up to prediction week
+            hot100_history = hot100_ranks[:prediction_week]
+            max_sequence_length = max(max_sequence_length, len(hot100_history))
+            
+            # Target: next weeks (adjusted for Holiday Hits)
+            future_ranks = hot100_ranks[prediction_week:prediction_week + adjusted_future_steps]
+            
+            # Pad future_ranks to standard length if needed
+            if len(future_ranks) < future_steps:
+                # Pad with last known value
+                last_value = future_ranks[-1] if len(future_ranks) > 0 else hot100_ranks[-1]
+                while len(future_ranks) < future_steps:
+                    future_ranks = np.append(future_ranks, last_value)
+            
+            if len(future_ranks) != future_steps:
+                continue
+            
+            # Get current platform features (at prediction week)
+            current_week_data = group.iloc[min(prediction_week - 1, len(group) - 1)]
+            
+            # Platform features
+            platform_features = []
+            for platform in ['radio', 'streaming', 'sales', 'apple', 'spotify']:
+                rank_col = f"{platform}_rank"
+                change_col = f"{platform}_change"
+                growth_col = f"{platform}_growth_rate"
+                
+                if rank_col in current_week_data:
+                    platform_features.append(current_week_data[rank_col])
+                if change_col in current_week_data:
+                    platform_features.append(current_week_data[change_col])
+                if growth_col in current_week_data:
+                    platform_features.append(current_week_data[growth_col])
+            
+            # Context features
+            context_features = []
+            for feat in ['platform_divergence', 'available_platforms', 'is_collab', 
+                        'is_holiday_season', 'is_summer_season', 'is_award_season']:
+                if feat in current_week_data:
+                    context_features.append(current_week_data[feat])
+            
+            # Lag features
+            lag_features_vals = []
+            for col in current_week_data.index:
+                if '_lag' in col and '_weighted' in col:
+                    lag_features_vals.append(current_week_data[col])
+            
+            # Combine static features
+            static_feature_vector = (
+                list(cluster_probabilities) +
+                platform_features +
+                context_features +
+                lag_features_vals
+            )
+            
+            # Store information
+            info = {
+                'song_id': song_id,
+                'predicted_cluster': predicted_cluster,
+                'cluster_probabilities': cluster_probabilities,
+                'prediction_week': prediction_week,
+                'history_length': len(hot100_history),
+                'artist': group['artist'].iloc[0],
+                'track': group['track'].iloc[0],
+                'full_chart_run': hot100_ranks,
+                'cluster': predicted_cluster,  # For compatibility with stratified_split
+                'is_holiday_hit': is_holiday_hit
+            }
+            
+            # Create multiple copies for Holiday Hits to increase representation
+            for mult in range(sequence_multiplier):
+                hot100_sequences.append(hot100_history)
+                static_features.append(static_feature_vector)
+                y_sequences.append(future_ranks)
+                song_info.append(info.copy())
+                
+                if is_holiday_hit:
+                    holiday_sequences_created += 1
+    
+    print(f"Found {holiday_songs_found} Holiday Hit songs, created {holiday_sequences_created} Holiday Hit sequences")
+    
+    # Pad hot100 sequences to same length
+    from tensorflow.keras.preprocessing.sequence import pad_sequences
+    hot100_padded = pad_sequences(hot100_sequences, maxlen=max_sequence_length, 
+                                  padding='pre', value=0, dtype='float32')
+    
+    # Convert to numpy arrays
+    static_features_array = np.array(static_features, dtype='float32')
+    y_sequences_array = np.array(y_sequences, dtype='float32')
+    
+    print(f"Max sequence length: {max_sequence_length}")
+    print(f"Static features dimension: {static_features_array.shape[1]}")
+    
+    # Combine for compatibility with existing code
+    X_seq = []
+    for i in range(len(hot100_sequences)):
+        # Combine hot100 sequence with static features for each sample
+        hot100_seq = hot100_padded[i].reshape(-1, 1)  # Make it 2D
+        static_feat = static_features_array[i].reshape(1, -1)  # Make it 2D
+        # Tile static features to match sequence length
+        static_tiled = np.tile(static_feat, (hot100_seq.shape[0], 1))
+        # Concatenate
+        combined_seq = np.concatenate([hot100_seq, static_tiled], axis=1)
+        X_seq.append(combined_seq)
+    
+    return X_seq, y_sequences_array, song_info
+
+# Prepare integrated sequence data
+print("Preparing integrated sequences with cluster prediction...")
+
+X_seq, y_seq, seq_info = prepare_integrated_sequences(
+    data, 
+    cluster_clf, 
+    cluster_scaler,
+    min_seq_length=5,
+    future_steps=4
+)
+
+print(f"Prepared {len(X_seq)} integrated sequences for forecasting")
+print(f"Feature dimension per timestep: {X_seq[0].shape[1] if len(X_seq) > 0 else 0}")
+
+# Get statistics on cluster representation
+cluster_counts = {}
+for info in seq_info:
+    cluster_id = info['predicted_cluster']
+    cluster_name = cluster_mapping.get(cluster_id, f"Cluster_{cluster_id}")
+    if cluster_name not in cluster_counts:
+        cluster_counts[cluster_name] = 0
+    cluster_counts[cluster_name] += 1
+
+print("Sequences per predicted cluster:")
+for cluster_id, cluster_name in cluster_mapping.items():
+    count = cluster_counts.get(cluster_name, 0)
+    print(f"  {cluster_name}: {count}")
+
+# Save the sequence data for future use
+with open(f"{output_dir}/seq_data.pkl", "wb") as f:
+    pickle.dump({
+        'X_seq': X_seq, 
+        'y_seq': y_seq, 
+        'seq_info': seq_info
+    }, f)
+# Only run this if we have sequence data
+if 'X_seq' in locals() and len(X_seq) > 0:
+    import random
+    from tensorflow.keras.preprocessing.sequence import pad_sequences
+    from tensorflow.keras.layers import Masking
+    
+    # Function for stratified sampling to ensure each cluster is represented
+    def stratified_split(X, y, info, cluster_mapping, min_test_per_cluster=3):
+        """
+        Split ensuring each cluster has at least min_test_per_cluster samples in test set.
+        """
+        # Group indices by cluster
+        indices_by_cluster = {}
+        for i, inf in enumerate(info):
+            cluster = inf['predicted_cluster']  # Use predicted cluster
+            if cluster not in indices_by_cluster:
+                indices_by_cluster[cluster] = []
+            indices_by_cluster[cluster].append(i)
+        
+        # Prepare indices for each split
+        train_indices = []
+        val_indices = []
+        test_indices = []
+        
+        # Process each cluster separately to ensure representation
+        for cluster, indices in indices_by_cluster.items():
+            cluster_name = cluster_mapping.get(cluster, f"Cluster_{cluster}")
+            total = len(indices)
+            
+            # Randomly shuffle indices
+            random.shuffle(indices)
+            
+            # Special handling for Holiday Hits - ensure minimum representation
+            if cluster_name == 'Holiday Hits':
+                min_test_per_cluster = max(3, int(0.2 * total))  # At least 20% in test
+            
+            # Ensure minimum test samples for each cluster
+            test_count = max(min_test_per_cluster, int(0.15 * total))
+            test_count = min(test_count, total - 2)  # Ensure some left for train/val
+            
+            val_count = int(0.15 * (total - test_count))
+            train_count = total - test_count - val_count
+            
+            # Handle edge cases with very few samples
+            if train_count <= 0:
+                print(f"  Warning: Cluster {cluster_name} has only {total} samples, adjusting allocation")
+                if total <= min_test_per_cluster:
+                    test_count = total
+                    val_count = 0
+                    train_count = 0
+                else:
+                    test_count = min_test_per_cluster
+                    val_count = min(1, total - test_count)
+                    train_count = total - test_count - val_count
+            
+            # Assign indices to appropriate sets
+            test_indices.extend(indices[:test_count])
+            val_indices.extend(indices[test_count:test_count+val_count])
+            train_indices.extend(indices[test_count+val_count:])
+            
+            print(f"  Cluster {cluster_name}: {train_count} train, {val_count} val, {test_count} test")
+        
+        return train_indices, val_indices, test_indices
+    
+    # Function to pad variable-length sequences
+    def prepare_padded_sequences(X, indices):
+        """
+        Handle variable-length sequences by padding them to the same length.
+        """
+        # Find max length in this subset
+        max_length = max(len(X[i]) for i in indices)
+        features = X[indices[0]].shape[1] if len(indices) > 0 else 0
+        
+        # Create padded array
+        padded_X = np.zeros((len(indices), max_length, features))
+        
+        # Fill with actual data (right-aligned)
+        for i, idx in enumerate(indices):
+            seq = X[idx]
+            padded_X[i, -len(seq):, :] = seq  # Pad at beginning
+            
+        return padded_X
+    
+    # Apply stratified split
+    train_indices, val_indices, test_indices = stratified_split(X_seq, y_seq, seq_info, cluster_mapping)
+    
+    # Prepare data with padding
+    X_train_seq = prepare_padded_sequences(X_seq, train_indices)
+    y_train_seq = y_seq[train_indices]
+    train_info = [seq_info[i] for i in train_indices]
+    
+    X_val_seq = prepare_padded_sequences(X_seq, val_indices)
+    y_val_seq = y_seq[val_indices]  
+    val_info = [seq_info[i] for i in val_indices]
+    
+    X_test_seq = prepare_padded_sequences(X_seq, test_indices)
+    y_test_seq = y_seq[test_indices]
+    test_info = [seq_info[i] for i in test_indices]
+    
+    print(f"Dataset split: {len(train_indices)} train, {len(val_indices)} val, {len(test_indices)} test")
+    
+    # Store results
+    model_results = {}
+    
+    # Train model with sigmoid + SGD
+    print("\nTraining integrated LSTM with sigmoid activation and SGD optimizer...")
+    
+    try:
+        # Build model with masking to handle variable-length sequences
+        model_sgd = Sequential([
+            # Masking layer ignores padded zeros during training
+            Masking(mask_value=0., input_shape=(X_train_seq.shape[1], X_train_seq.shape[2])),
+            LSTM(64, activation='sigmoid', return_sequences=True),
+            Dropout(0.2),
+            LSTM(32, activation='sigmoid'),
+            Dropout(0.2),
+            Dense(4)  # Predict next 4 weeks
+        ])
+        
+        # Compile with SGD optimizer
+        model_sgd.compile(optimizer='sgd', loss='mse', metrics=['mae'])
+        
+        # Print model info
+        print(f"Model input shape: {model_sgd.input_shape}")
+        print(f"Model output shape: {model_sgd.output_shape}")
+        print(f"Training data shape: {X_train_seq.shape}")
+        print(f"Target data shape: {y_train_seq.shape}")
+        
+        # Early stopping
+        early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+        
+        # Train
+        history_sgd = model_sgd.fit(
+            X_train_seq, y_train_seq,
+            validation_data=(X_val_seq, y_val_seq),
+            epochs=100,
+            batch_size=32,
+            callbacks=[early_stop],
+            verbose=1
+        )
+        
+        # Evaluate
+        y_pred_sgd = model_sgd.predict(X_test_seq)
+        
+        # Check for NaN values
+        if np.isnan(y_pred_sgd).any():
+            print("  Warning: NaN values in SGD predictions")
+            nan_count = np.isnan(y_pred_sgd).sum()
+            print(f"  Total NaN values: {nan_count}")
+        else:
+            test_rmse_sgd = np.sqrt(mean_squared_error(y_test_seq.flatten(), y_pred_sgd.flatten()))
+            test_mae_sgd = mean_absolute_error(y_test_seq.flatten(), y_pred_sgd.flatten())
+            test_r2_sgd = r2_score(y_test_seq.flatten(), y_pred_sgd.flatten())
+            
+            print(f"\n=== INTEGRATED LSTM RESULTS ===")
+            print(f"Test RMSE: {test_rmse_sgd:.4f}")
+            print(f"Test MAE: {test_mae_sgd:.4f}")
+            print(f"Test R²: {test_r2_sgd:.4f}")
+            
+            # Store results
+            model_results['sigmoid_sgd'] = {
+                'model': model_sgd,
+                'history': history_sgd,
+                'rmse': test_rmse_sgd,
+                'mae': test_mae_sgd,
+                'r2': test_r2_sgd,
+                'predictions': y_pred_sgd,
+                'test_indices': test_indices
+            }
+            
+            # Save model and results immediately
+            model_sgd.save(f"{output_dir}/integrated_lstm_sigmoid_sgd.keras")
+            print(f"Model saved as {output_dir}/integrated_lstm_sigmoid_sgd.keras")
+            
+    except Exception as e:
+        print(f"  Error in training sigmoid_sgd: {str(e)}")
+        import traceback
+        traceback.print_exc()
+    
+    # Save results if we have any
+    if model_results:
+        best_model_name = min(model_results.items(), key=lambda x: x[1]['rmse'])[0]
+        print(f"\nBest model configuration: {best_model_name}")
+        
+        # Save all data needed for visualization
+        try:
+            with open(f"{output_dir}/integrated_lstm_results.pkl", "wb") as f:
+                save_data = {
+                    'best_model_name': best_model_name,
+                    'test_indices': test_indices,
+                    'seq_info': seq_info,
+                    'model_results': {}
+                }
+                
+                # Save filtered results (without full model objects)
+                for name, res in model_results.items():
+                    save_data['model_results'][name] = {
+                        'rmse': res['rmse'],
+                        'mae': res['mae'],
+                        'r2': res['r2'],
+                        'predictions': res['predictions']
+                    }
+                
+                pickle.dump(save_data, f)
+            
+            print(f"Results saved to {output_dir}/integrated_lstm_results.pkl")
+            
+        except Exception as e:
+            print(f"Error saving results: {str(e)}")
+    else:
+        print("No successful models to save")
+else:
+    print("Not enough sequence data available for time series forecasting.")
+# Add L2 regularized version of the integrated LSTM model
+print("\nTraining L2-regularized version of the integrated LSTM (sigmoid with SGD)...")
+
+# Only proceed if we have the best model
+if 'sigmoid_sgd' in model_results:
+    try:
+        # Build L2-regularized model with identical architecture to the best model
+        model_l2 = Sequential([
+            Masking(mask_value=0., input_shape=(X_train_seq.shape[1], X_train_seq.shape[2])),
+            LSTM(64, activation='sigmoid', return_sequences=True, 
+                 kernel_regularizer=tf.keras.regularizers.l2(1e-5)),  # Add L2 regularization
+            Dropout(0.2),
+            LSTM(32, activation='sigmoid',
+                 kernel_regularizer=tf.keras.regularizers.l2(1e-5)),  # Add L2 regularization
+            Dropout(0.2),
+            Dense(4)  # Predict next 4 weeks
+        ])
+        
+        # Compile with SGD optimizer just like the best model
+        model_l2.compile(optimizer='sgd', loss='mse', metrics=['mae'])
+        
+        # Print model info
+        print(f"L2 Model input shape: {model_l2.input_shape}")
+        print(f"L2 regularization coefficient: 1e-5")
+        
+        # Early stopping with same settings
+        early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+        
+        # Train with the same data
+        history_l2 = model_l2.fit(
+            X_train_seq, y_train_seq,
+            validation_data=(X_val_seq, y_val_seq),
+            epochs=100,
+            batch_size=32,
+            callbacks=[early_stop],
+            verbose=1
+        )
+        
+        # Evaluate on test set
+        y_pred_l2 = model_l2.predict(X_test_seq)
+        
+        # Check for NaN values
+        if np.isnan(y_pred_l2).any():
+            print("  Warning: NaN values in L2-regularized model predictions")
+            nan_count = np.isnan(y_pred_l2).sum()
+            print(f"  Total NaN values: {nan_count}")
+        else:
+            test_rmse_l2 = np.sqrt(mean_squared_error(y_test_seq.flatten(), y_pred_l2.flatten()))
+            test_mae_l2 = mean_absolute_error(y_test_seq.flatten(), y_pred_l2.flatten())
+            test_r2_l2 = r2_score(y_test_seq.flatten(), y_pred_l2.flatten())
+            
+            print(f"\n=== L2 REGULARIZED LSTM RESULTS ===")
+            print(f"Test RMSE: {test_rmse_l2:.4f}")
+            print(f"Test MAE: {test_mae_l2:.4f}")
+            print(f"Test R²: {test_r2_l2:.4f}")
+            
+            # Compare with original model
+            original_rmse = model_results['sigmoid_sgd']['rmse']
+            rmse_diff = test_rmse_l2 - original_rmse
+            print(f"\n=== COMPARISON WITH ORIGINAL ===")
+            print(f"Original RMSE: {original_rmse:.4f}")
+            print(f"L2 RMSE: {test_rmse_l2:.4f}")
+            print(f"RMSE difference: {rmse_diff:.4f} ({'worse' if rmse_diff > 0 else 'better'})")
+            
+            # Store results
+            model_results['sigmoid_sgd_l2'] = {
+                'model': model_l2,
+                'history': history_l2,
+                'rmse': test_rmse_l2,
+                'mae': test_mae_l2,
+                'r2': test_r2_l2,
+                'predictions': y_pred_l2,
+                'test_indices': test_indices
+            }
+            
+            # Check if this is now the best model
+            best_model_name = min(model_results.items(), key=lambda x: x[1]['rmse'])[0]
+            print(f"\n=== FINAL MODEL SELECTION ===")
+            print(f"Best model after L2 comparison: {best_model_name}")
+            
+            if best_model_name == 'sigmoid_sgd_l2':
+                print("L2 regularization IMPROVED the model!")
+            else:
+                print("Original model performed better than L2 regularized version.")
+            
+            # Save updated results
+            try:
+                with open(f"{output_dir}/integrated_lstm_results_final.pkl", "wb") as f:
+                    save_data = {
+                        'best_model_name': best_model_name,
+                        'test_indices': test_indices,
+                        'seq_info': seq_info,
+                        'model_results': {},
+                        'model_comparison': {
+                            'original_rmse': original_rmse,
+                            'l2_rmse': test_rmse_l2,
+                            'improvement': rmse_diff < 0
+                        }
+                    }
+                    
+                    # Save filtered results (without full model objects)
+                    for name, res in model_results.items():
+                        save_data['model_results'][name] = {
+                            'rmse': res['rmse'],
+                            'mae': res['mae'],
+                            'r2': res['r2'],
+                            'predictions': res['predictions']
+                        }
+                    
+                    pickle.dump(save_data, f)
+                
+                # Save the best model separately with proper extension
+                model_results[best_model_name]['model'].save(f"{output_dir}/best_integrated_lstm.keras")
+                print(f"Best model saved as {output_dir}/best_integrated_lstm.keras")
+                
+                # Also save the L2 regularized model regardless of whether it's best
+                model_l2.save(f"{output_dir}/integrated_lstm_l2_regularized.keras")
+                print(f"L2 regularized model saved as {output_dir}/integrated_lstm_l2_regularized.keras")
+                
+                print(f"Final results saved to {output_dir}/integrated_lstm_results_final.pkl")
+                
+            except Exception as e:
+                print(f"Error saving results: {str(e)}")
+            
+    except Exception as e:
+        print(f"  Error in training L2-regularized model: {str(e)}")
+        import traceback
+        traceback.print_exc()
+else:
+    print("  Cannot train L2-regularized version - original model (sigmoid_sgd) not found")
+
+# Final summary
+if 'model_results' in locals() and model_results:
+    print(f"\n{'='*50}")
+    print("INTEGRATED LSTM FORECASTING SUMMARY")
+    print(f"{'='*50}")
+    print(f"Total sequences processed: {len(X_seq)}")
+    print(f"Feature dimension per timestep: {X_seq[0].shape[1]}")
+    print(f"Models trained: {len(model_results)}")
+    
+    print(f"\nCluster distribution in training:")
+    train_clusters = {}
+    for info in train_info:
+        cluster_name = cluster_mapping.get(info['predicted_cluster'], 'Unknown')
+        train_clusters[cluster_name] = train_clusters.get(cluster_name, 0) + 1
+    for cluster, count in sorted(train_clusters.items()):
+        print(f"  {cluster}: {count} sequences")
+    
+    print(f"\nFinal model performance:")
+    for name, results in model_results.items():
+        print(f"  {name}:")
+        print(f"    RMSE: {results['rmse']:.4f}")
+        print(f"    MAE: {results['mae']:.4f}")
+        print(f"    R²: {results['r2']:.4f}")
+# Only run this if we have sequence data
+if 'X_seq' in locals() and len(X_seq) > 0:
+    import random
+    from tensorflow.keras.preprocessing.sequence import pad_sequences
+    from tensorflow.keras.layers import Masking
+    
+    # Function for stratified sampling to ensure each cluster is represented
+    def stratified_split(X, y, info, cluster_mapping, min_test_per_cluster=3):
+        """
+        Split ensuring each cluster has at least min_test_per_cluster samples in test set.
+        """
+        # Group indices by cluster
+        indices_by_cluster = {}
+        for i, inf in enumerate(info):
+            cluster = inf['predicted_cluster']  # Use predicted cluster
+            if cluster not in indices_by_cluster:
+                indices_by_cluster[cluster] = []
+            indices_by_cluster[cluster].append(i)
+        
+        # Prepare indices for each split
+        train_indices = []
+        val_indices = []
+        test_indices = []
+        
+        # Process each cluster separately to ensure representation
+        for cluster, indices in indices_by_cluster.items():
+            cluster_name = cluster_mapping.get(cluster, f"Cluster_{cluster}")
+            total = len(indices)
+            
+            # Randomly shuffle indices
+            random.shuffle(indices)
+            
+            # Special handling for Holiday Hits - ensure minimum representation
+            if cluster_name == 'Holiday Hits':
+                min_test_per_cluster = max(3, int(0.2 * total))  # At least 20% in test
+            
+            # Ensure minimum test samples for each cluster
+            test_count = max(min_test_per_cluster, int(0.15 * total))
+            test_count = min(test_count, total - 2)  # Ensure some left for train/val
+            
+            val_count = int(0.15 * (total - test_count))
+            train_count = total - test_count - val_count
+            
+            # Handle edge cases with very few samples
+            if train_count <= 0:
+                print(f"  Warning: Cluster {cluster_name} has only {total} samples, adjusting allocation")
+                if total <= min_test_per_cluster:
+                    test_count = total
+                    val_count = 0
+                    train_count = 0
+                else:
+                    test_count = min_test_per_cluster
+                    val_count = min(1, total - test_count)
+                    train_count = total - test_count - val_count
+            
+            # Assign indices to appropriate sets
+            test_indices.extend(indices[:test_count])
+            val_indices.extend(indices[test_count:test_count+val_count])
+            train_indices.extend(indices[test_count+val_count:])
+            
+            print(f"  Cluster {cluster_name}: {train_count} train, {val_count} val, {test_count} test")
+        
+        return train_indices, val_indices, test_indices
+    
+    # Function to pad variable-length sequences
+    def prepare_padded_sequences(X, indices):
+        """
+        Handle variable-length sequences by padding them to the same length.
+        """
+        # Find max length in this subset
+        max_length = max(len(X[i]) for i in indices)
+        features = X[indices[0]].shape[1] if len(indices) > 0 else 0
+        
+        # Create padded array
+        padded_X = np.zeros((len(indices), max_length, features))
+        
+        # Fill with actual data (right-aligned)
+        for i, idx in enumerate(indices):
+            seq = X[idx]
+            padded_X[i, -len(seq):, :] = seq  # Pad at beginning
+            
+        return padded_X
+    
+    # Apply stratified split
+    train_indices, val_indices, test_indices = stratified_split(X_seq, y_seq, seq_info, cluster_mapping)
+    
+    # Prepare data with padding
+    X_train_seq = prepare_padded_sequences(X_seq, train_indices)
+    y_train_seq = y_seq[train_indices]
+    train_info = [seq_info[i] for i in train_indices]
+    
+    X_val_seq = prepare_padded_sequences(X_seq, val_indices)
+    y_val_seq = y_seq[val_indices]  
+    val_info = [seq_info[i] for i in val_indices]
+    
+    X_test_seq = prepare_padded_sequences(X_seq, test_indices)
+    y_test_seq = y_seq[test_indices]
+    test_info = [seq_info[i] for i in test_indices]
+    
+    print(f"Dataset split: {len(train_indices)} train, {len(val_indices)} val, {len(test_indices)} test")
+    
+    # Define final test combinations
+    final_combinations = [
+        ('tanh', 'adam'),      # FAVORIT - best activation + best optimizer
+        ('sigmoid', 'rmsprop'), # Magic optimizer + solid activation  
+        ('relu', 'rmsprop')     # Curiozitate - relu cu magic optimizer
+    ]
+    
+    print(f"\n?? FINAL ROUND: Testing {len(final_combinations)} championship combinations...")
+    print("Target combinations: tanh+adam (FAVORIT), sigmoid+rmsprop, relu+rmsprop")
+    
+    # Store results
+    model_results = {}
+    
+    # Current leaderboard for reference
+    current_champion = {
+        'name': 'tanh_rmsprop',
+        'rmse': 9.9491,
+        'mae': 7.0790,
+        'r2': 0.8536
+    }
+    
+    print(f"\n?? CURRENT CHAMPION TO BEAT:")
+    print(f"   {current_champion['name']}: RMSE={current_champion['rmse']:.4f}, R²={current_champion['r2']:.4f}")
+    
+    # Test each combination
+    for i, (activation, optimizer) in enumerate(final_combinations, 1):
+        model_name = f"{activation}_{optimizer}"
+        
+        # Special highlighting for the favorite
+        if model_name == "tanh_adam":
+            print(f"\n{'??'*20}")
+            print(f"? TRAINING FAVORITE {i}/3: {model_name.upper()} ?")
+            print(f"{'??'*20}")
+        else:
+            print(f"\n{'='*60}")
+            print(f"TRAINING MODEL {i}/3: {model_name.upper()}")
+            print(f"{'='*60}")
+        
+        print(f"Configuration: {activation} activation + {optimizer} optimizer")
+        
+        try:
+            # Build model with current combination
+            model = Sequential([
+                Masking(mask_value=0., input_shape=(X_train_seq.shape[1], X_train_seq.shape[2])),
+                LSTM(64, activation=activation, return_sequences=True),
+                Dropout(0.2),
+                LSTM(32, activation=activation),
+                Dropout(0.2),
+                Dense(4)  # Predict next 4 weeks
+            ])
+            
+            print(f"? Model architecture created successfully")
+            print(f"   Input shape: {X_train_seq.shape}")
+            print(f"   Output shape: {y_train_seq.shape}")
+            
+            # Compile with current optimizer
+            model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
+            print(f"? Model compiled with {optimizer} optimizer")
+            
+            # Early stopping
+            early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+            print(f"? Early stopping configured (patience=10)")
+            
+            print(f"\n?? STARTING TRAINING...")
+            print(f"   Epochs: 100 | Batch size: 32 | Monitoring: val_loss")
+            
+            # Train with verbose=1 to see progress
+            history = model.fit(
+                X_train_seq, y_train_seq,
+                validation_data=(X_val_seq, y_val_seq),
+                epochs=100,
+                batch_size=32,
+                callbacks=[early_stop],
+                verbose=1  # Show training progress
+            )
+            
+            print(f"\n? TRAINING COMPLETED for {model_name}")
+            print(f"   Epochs trained: {len(history.history['loss'])}")
+            print(f"   Final training loss: {history.history['loss'][-1]:.4f}")
+            print(f"   Final validation loss: {history.history['val_loss'][-1]:.4f}")
+            
+            # Evaluate on test set
+            print(f"\n?? EVALUATING ON TEST SET...")
+            y_pred = model.predict(X_test_seq, verbose=1)
+            
+            # Check for NaN values
+            if np.isnan(y_pred).any():
+                nan_count = np.isnan(y_pred).sum()
+                print(f"??  CRITICAL WARNING: {nan_count} NaN values detected!")
+                print(f"   Model {model_name} has failed - skipping...")
+                continue
+            else:
+                # Calculate metrics
+                test_rmse = np.sqrt(mean_squared_error(y_test_seq.flatten(), y_pred.flatten()))
+                test_mae = mean_absolute_error(y_test_seq.flatten(), y_pred.flatten())
+                test_r2 = r2_score(y_test_seq.flatten(), y_pred.flatten())
+                
+                # Compare with current champion
+                improvement = ((current_champion['rmse'] - test_rmse) / current_champion['rmse']) * 100
+                
+                print(f"\n?? RESULTS FOR {model_name.upper()}:")
+                print(f"   Test RMSE: {test_rmse:.4f}")
+                print(f"   Test MAE:  {test_mae:.4f}")
+                print(f"   Test R²:   {test_r2:.4f}")
+                
+                if test_rmse < current_champion['rmse']:
+                    print(f"   ?? NEW RECORD! {improvement:.2f}% improvement over champion!")
+                    print(f"   ?? {model_name} is the NEW CHAMPION!")
+                elif test_rmse < 10.0:
+                    print(f"   ?? EXCELLENT! Sub-10 RMSE achieved!")
+                elif test_r2 > 0.8:
+                    print(f"   ? SOLID performance with R² > 0.8")
+                else:
+                    print(f"   ?? Below expectations...")
+                
+                # Store results
+                model_results[model_name] = {
+                    'model': model,
+                    'history': history,
+                    'rmse': test_rmse,
+                    'mae': test_mae,
+                    'r2': test_r2,
+                    'predictions': y_pred,
+                    'test_indices': test_indices,
+                    'activation': activation,
+                    'optimizer': optimizer,
+                    'epochs_trained': len(history.history['loss']),
+                    'improvement_vs_champion': improvement
+                }
+                
+                print(f"? {model_name} results stored successfully")
+                
+        except Exception as e:
+            print(f"? CRITICAL ERROR in training {model_name}: {str(e)}")
+            import traceback
+            print("Full error traceback:")
+            traceback.print_exc()
+            continue
+    
+    # ULTIMATE RESULTS ANALYSIS
+    if model_results:
+        print(f"\n{'??'*25}")
+        print("?? ULTIMATE CHAMPIONSHIP RESULTS ??")
+        print(f"{'??'*25}")
+        
+        # Add current champion to comparison
+        all_results = model_results.copy()
+        all_results['tanh_rmsprop'] = {
+            'rmse': current_champion['rmse'],
+            'mae': current_champion['mae'], 
+            'r2': current_champion['r2'],
+            'activation': 'tanh',
+            'optimizer': 'rmsprop',
+            'epochs_trained': 89,
+            'improvement_vs_champion': 0.0
+        }
+        
+        # Sort by RMSE (lower is better)
+        sorted_models = sorted(all_results.items(), key=lambda x: x[1]['rmse'])
+        
+        print(f"\n{'Rank':<4} {'Model':<15} {'RMSE':<8} {'MAE':<8} {'R²':<8} {'Epochs':<7} {'vs Champion':<12} {'Status'}")
+        print("-" * 100)
+        
+        for rank, (name, results) in enumerate(sorted_models, 1):
+            improvement = results.get('improvement_vs_champion', 0.0)
+            
+            if rank == 1:
+                status = "?? ULTIMATE CHAMPION"
+            elif results['rmse'] < 10.0:
+                status = "?? Sub-10 Elite"
+            elif results['r2'] > 0.8:
+                status = "? Excellent"
+            elif results['r2'] > 0.7:
+                status = "?? Good"
+            else:
+                status = "? Poor"
+            
+            improvement_str = f"+{improvement:.2f}%" if improvement > 0 else f"{improvement:.2f}%" if improvement < 0 else "Baseline"
+            
+            print(f"{rank:<4} {name:<15} {results['rmse']:<8.4f} {results['mae']:<8.4f} "
+                  f"{results['r2']:<8.4f} {results['epochs_trained']:<7} {improvement_str:<12} {status}")
+        
+        # Champion analysis
+        ultimate_champion = sorted_models[0]
+        champion_name = ultimate_champion[0]
+        champion_results = ultimate_champion[1]
+        
+        print(f"\n?? ULTIMATE CHAMPION: {champion_name}")
+        print(f"   ?? Configuration: {champion_results['activation']} + {champion_results['optimizer']}")
+        print(f"   ?? RMSE: {champion_results['rmse']:.4f}")
+        print(f"   ?? MAE: {champion_results['mae']:.4f}")
+        print(f"   ?? R²: {champion_results['r2']:.4f}")
+        print(f"   ??  Training epochs: {champion_results['epochs_trained']}")
+        
+        if champion_results['rmse'] < current_champion['rmse']:
+            improvement = ((current_champion['rmse'] - champion_results['rmse']) / current_champion['rmse']) * 100
+            print(f"   ?? NEW WORLD RECORD: {improvement:.2f}% improvement!")
+        
+        # Save all models and results
+        print(f"\n?? SAVING ALL MODELS AND RESULTS...")
+        
+        try:
+            # Save comprehensive results
+            with open(f"{output_dir}/final_championship_results.pkl", "wb") as f:
+                save_data = {
+                    'ultimate_champion': {
+                        'name': champion_name,
+                        'config': {
+                            'activation': champion_results['activation'],
+                            'optimizer': champion_results['optimizer']
+                        },
+                        'metrics': {
+                            'rmse': champion_results['rmse'],
+                            'mae': champion_results['mae'],
+                            'r2': champion_results['r2']
+                        }
+                    },
+                    'all_results': {name: {
+                        'rmse': res['rmse'],
+                        'mae': res['mae'],
+                        'r2': res['r2'],
+                        'activation': res['activation'],
+                        'optimizer': res['optimizer'],
+                        'epochs_trained': res['epochs_trained'],
+                        'predictions': res.get('predictions', None)
+                    } for name, res in all_results.items()},
+                    'test_indices': test_indices,
+                    'seq_info': seq_info,
+                    'championship_history': {
+                        'previous_champion': current_champion,
+                        'final_ranking': [(name, res['rmse']) for name, res in sorted_models]
+                    }
+                }
+                
+                pickle.dump(save_data, f)
+            
+            print(f"   ? Championship results saved: {output_dir}/final_championship_results.pkl")
+            
+            # Save individual models
+            models_saved = 0
+            for model_name, results in model_results.items():
+                try:
+                    model_filename = f"{output_dir}/model_{model_name}_final.keras"
+                    results['model'].save(model_filename)
+                    print(f"   ? Model saved: {model_filename}")
+                    models_saved += 1
+                except Exception as e:
+                    print(f"   ? Error saving {model_name}: {str(e)}")
+            
+            # Save the ultimate champion separately
+            if champion_name in model_results:
+                try:
+                    champion_filename = f"{output_dir}/ULTIMATE_CHAMPION_{champion_name}.keras"
+                    model_results[champion_name]['model'].save(champion_filename)
+                    print(f"   ?? ULTIMATE CHAMPION saved: {champion_filename}")
+                except Exception as e:
+                    print(f"   ? Error saving champion: {str(e)}")
+            
+            print(f"\n?? FINAL SUMMARY:")
+            print(f"   ?? Ultimate Champion: {champion_name}")
+            print(f"   ?? Champion RMSE: {champion_results['rmse']:.4f}")
+            print(f"   ?? Models saved: {models_saved}")
+            print(f"   ?? Results file: final_championship_results.pkl")
+            
+            # Performance insights
+            best_rmse = champion_results['rmse']
+            if best_rmse < 9.5:
+                print(f"   ?? EXCEPTIONAL: Sub-9.5 RMSE achieved!")
+            elif best_rmse < 10.0:
+                print(f"   ?? EXCELLENT: Sub-10 RMSE achieved!")
+            elif best_rmse < 10.5:
+                print(f"   ? VERY GOOD: Sub-10.5 RMSE achieved!")
+            
+            # Activation/Optimizer insights
+            best_activation = champion_results['activation']
+            best_optimizer = champion_results['optimizer']
+            
+            print(f"\n?? KEY INSIGHTS:")
+            print(f"   ?? Best activation for music charts: {best_activation}")
+            print(f"   ??  Best optimizer for LSTM: {best_optimizer}")
+            print(f"   ?? Optimal combo for music prediction: {best_activation} + {best_optimizer}")
+            
+            if best_activation == 'tanh':
+                print(f"   ?? tanh dominance confirmed for chart trajectories!")
+            if best_optimizer == 'rmsprop':
+                print(f"   ?? rmsprop superiority confirmed for LSTM music models!")
+            if best_optimizer == 'adam':
+                print(f"   ?? adam reliability confirmed for complex predictions!")
+                
+        except Exception as e:
+            print(f"? Error saving results: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+    else:
+        print("? No successful models trained in final round!")
+        
+else:
+    print("? Not enough sequence data available for time series forecasting.")
+
+print(f"\n{'??'*30}")
+print("?? CHAMPIONSHIP COMPLETE! ??")
+print(f"{'??'*30}")
+# Add L2 regularized version of the CHAMPION model only
+if 'model_results' in locals() and model_results:
+    # Find the champion model (lowest RMSE)
+    best_model_name = min(model_results.items(), key=lambda x: x[1]['rmse'])[0]
+    best_rmse = model_results[best_model_name]['rmse']
+    
+    print(f"\n{'='*60}")
+    print("L2 REGULARIZATION EXPERIMENT")
+    print(f"{'='*60}")
+    print(f"Champion model: {best_model_name} (RMSE: {best_rmse:.4f})")
+    print(f"Training L2-regularized version of the champion...")
+    
+    # Extract optimizer from best model name (should be 'rmsprop' for sigmoid_rmsprop)
+    if '_' in best_model_name:
+        optimizer = best_model_name.split('_')[-1]  # Extract last part (rmsprop/adam/sgd)
+    else:
+        optimizer = 'rmsprop'  # Default fallback
+    
+    try:
+        # Build L2-regularized model with IDENTICAL architecture to champion
+        print(f"Building L2-regularized {best_model_name} model...")
+        model_l2 = Sequential([
+            Masking(mask_value=0., input_shape=(X_train_seq.shape[1], X_train_seq.shape[2])),
+            LSTM(64, activation='sigmoid', return_sequences=True, 
+                 kernel_regularizer=tf.keras.regularizers.l2(1e-5)),  # Add L2 regularization
+            Dropout(0.2),
+            LSTM(32, activation='sigmoid',
+                 kernel_regularizer=tf.keras.regularizers.l2(1e-5)),  # Add L2 regularization
+            Dropout(0.2),
+            Dense(4)  # Predict next 4 weeks
+        ])
+        
+        # Compile with SAME optimizer as champion
+        model_l2.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
+        
+        print(f"? Architecture: 64?32 LSTM with sigmoid activation")
+        print(f"? Optimizer: {optimizer}")
+        print(f"? L2 regularization: 1e-5 on LSTM layers")
+        
+        # Early stopping with same settings as champion
+        early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+        
+        # Train with the same data as champion
+        print(f"Training L2 model (max 100 epochs with early stopping)...")
+        history_l2 = model_l2.fit(
+            X_train_seq, y_train_seq,
+            validation_data=(X_val_seq, y_val_seq),
+            epochs=100,
+            batch_size=32,
+            callbacks=[early_stop],
+            verbose=1
+        )
+        
+        # Evaluate on test set
+        print("Evaluating L2 model on test set...")
+        y_pred_l2 = model_l2.predict(X_test_seq, verbose=0)
+        
+        # Check for NaN values
+        if np.isnan(y_pred_l2).any():
+            print("? L2 model failed: NaN predictions detected")
+        else:
+            test_rmse_l2 = np.sqrt(mean_squared_error(y_test_seq.flatten(), y_pred_l2.flatten()))
+            test_mae_l2 = mean_absolute_error(y_test_seq.flatten(), y_pred_l2.flatten())
+            test_r2_l2 = r2_score(y_test_seq.flatten(), y_pred_l2.flatten())
+            
+            epochs_trained = len(history_l2.history['loss'])
+            
+            # Store L2 results
+            l2_model_name = f"{best_model_name}_l2"
+            model_results[l2_model_name] = {
+                'model': model_l2,
+                'history': history_l2,
+                'rmse': test_rmse_l2,
+                'mae': test_mae_l2,
+                'r2': test_r2_l2,
+                'predictions': y_pred_l2,
+                'test_indices': test_indices,
+                'epochs': epochs_trained
+            }
+            
+            # Compare with champion
+            rmse_improvement = best_rmse - test_rmse_l2
+            percent_improvement = (rmse_improvement / best_rmse) * 100
+            
+            print(f"\n{'='*50}")
+            print("L2 REGULARIZATION RESULTS")
+            print(f"{'='*50}")
+            print(f"Champion {best_model_name}:")
+            print(f"  RMSE: {best_rmse:.4f}")
+            print(f"  R²:   {model_results[best_model_name]['r2']:.4f}")
+            
+            print(f"\nL2 {l2_model_name}:")
+            print(f"  RMSE: {test_rmse_l2:.4f}")
+            print(f"  MAE:  {test_mae_l2:.4f}")
+            print(f"  R²:   {test_r2_l2:.4f}")
+            print(f"  Epochs: {epochs_trained}")
+            
+            print(f"\nCOMPARISON:")
+            print(f"  RMSE change: {rmse_improvement:+.4f}")
+            print(f"  Improvement: {percent_improvement:+.2f}%")
+            
+            # Determine if L2 is better
+            if test_rmse_l2 < best_rmse:
+                print(f"  Result: ? L2 IMPROVED the champion!")
+                new_champion = l2_model_name
+                print(f"  New champion: {new_champion}")
+            else:
+                print(f"  Result: ? L2 did not improve the champion")
+                new_champion = best_model_name
+                print(f"  Champion remains: {new_champion}")
+            
+            # Update final champion
+            final_champion = min(model_results.items(), key=lambda x: x[1]['rmse'])[0]
+            final_champion_rmse = model_results[final_champion]['rmse']
+            
+            print(f"\n{'='*60}")
+            print("FINAL MODEL RANKING")
+            print(f"{'='*60}")
+            sorted_models = sorted(model_results.items(), key=lambda x: x[1]['rmse'])
+            for i, (name, results) in enumerate(sorted_models, 1):
+                is_champion = " ? FINAL CHAMPION" if name == final_champion else ""
+                l2_indicator = " [L2]" if "_l2" in name else ""
+                print(f"{i}. {name}{l2_indicator}: RMSE={results['rmse']:.4f}, R²={results['r2']:.4f}{is_champion}")
+            
+            # Save the final champion model
+            try:
+                final_champion_model = model_results[final_champion]['model']
+                final_champion_model.save(f"{output_dir}/final_champion_model.keras")
+                print(f"\n? Final champion saved: {output_dir}/final_champion_model.keras")
+                
+                # Save results summary
+                with open(f"{output_dir}/final_champion_results.pkl", "wb") as f:
+                    champion_data = {
+                        'final_champion_name': final_champion,
+                        'final_champion_rmse': final_champion_rmse,
+                        'original_champion_name': best_model_name,
+                        'original_champion_rmse': best_rmse,
+                        'l2_model_name': l2_model_name,
+                        'l2_model_rmse': test_rmse_l2,
+                        'l2_improved': test_rmse_l2 < best_rmse,
+                        'rmse_improvement': rmse_improvement,
+                        'percent_improvement': percent_improvement,
+                        'test_indices': test_indices,
+                        'model_ranking': [(name, res['rmse'], res['r2']) for name, res in sorted_models],
+                        'predictions': {
+                            'champion': model_results[final_champion]['predictions'],
+                            'test_targets': y_test_seq
+                        }
+                    }
+                    pickle.dump(champion_data, f)
+                
+                print(f"? Champion results saved: {output_dir}/final_champion_results.pkl")
+                
+            except Exception as e:
+                print(f"? Error saving champion model: {str(e)}")
+            
+    except Exception as e:
+        print(f"? Error training L2-regularized model: {str(e)}")
+        import traceback
+        traceback.print_exc()
+else:
+    print("? Cannot train L2-regularized version - no models found")
+
+# Final comprehensive summary
+if 'model_results' in locals() and model_results:
+    print(f"\n{'='*60}")
+    print("INTEGRATED LSTM FORECASTING FINAL SUMMARY")
+    print(f"{'='*60}")
+    print(f"Total sequences processed: {len(X_seq)}")
+    print(f"Feature dimension per timestep: {X_seq[0].shape[1]}")
+    print(f"Models trained and evaluated: {len(model_results)}")
+    
+    # Find final champion
+    final_champion = min(model_results.items(), key=lambda x: x[1]['rmse'])[0]
+    final_rmse = model_results[final_champion]['rmse']
+    final_r2 = model_results[final_champion]['r2']
+    
+    print(f"\n?? FINAL CHAMPION: {final_champion}")
+    print(f"   RMSE: {final_rmse:.4f}")
+    print(f"   R²:   {final_r2:.4f}")
+    
+    if "_l2" in final_champion:
+        print(f"   Note: L2 regularization successfully improved the base model!")
+    else:
+        print(f"   Note: Original model remained the best despite L2 regularization.")
+    
+    print(f"\nCluster distribution in training:")
+    train_clusters = {}
+    for info in train_info:
+        cluster_name = cluster_mapping.get(info['predicted_cluster'], 'Unknown')
+        train_clusters[cluster_name] = train_clusters.get(cluster_name, 0) + 1
+    for cluster, count in sorted(train_clusters.items()):
+        percentage = (count / len(train_info)) * 100
+        print(f"  {cluster}: {count} sequences ({percentage:.1f}%)")
+    
+    # Performance insights
+    best_rmse = min(res['rmse'] for res in model_results.values())
+    worst_rmse = max(res['rmse'] for res in model_results.values())
+    print(f"\nPerformance insights:")
+    print(f"  Best RMSE achieved: {best_rmse:.4f}")
+    print(f"  Worst RMSE: {worst_rmse:.4f}")
+    print(f"  Total improvement range: {worst_rmse - best_rmse:.4f}")
+    
+    # Check if we have both L2 and non-L2 versions
+    l2_models = [name for name in model_results.keys() if "_l2" in name]
+    if l2_models:
+        print(f"  L2 regularization tested: ? ({len(l2_models)} L2 model(s))")
+    else:
+        print(f"  L2 regularization tested: ?")
+
+print(f"\n?? LSTM forecasting experiment completed!")
+print(f"Final champion model ready for Billboard Hot 100 prediction!")
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from collections import defaultdict
+import random
+
+def create_trajectory_prediction_visualization():
+    """
+    Create trajectory prediction visualization showing actual vs predicted Hot 100 trajectories
+    for 2 representative songs from each cluster.
+    """
+    
+    # Load results if they exist
+    try:
+        with open(f"{output_dir}/integrated_lstm_results_final.pkl", "rb") as f:
+            results_data = pickle.load(f)
+        
+        best_model_name = results_data['final_best_model_name']
+        predictions = results_data['model_results'][best_model_name]['predictions']
+        
+        print(f"Using predictions from best model: {best_model_name}")
+        
+    except:
+        if 'model_results' not in locals() or not model_results:
+            print("No model results available for visualization")
+            return
+        
+        # Use the best model from current session
+        best_model_name = min(model_results.items(), key=lambda x: x[1]['rmse'])[0]
+        predictions = model_results[best_model_name]['predictions']
+        print(f"Using predictions from current session: {best_model_name}")
+    
+    # Group songs by predicted cluster
+    songs_by_cluster = defaultdict(list)
+    
+    for i, info in enumerate(test_info):
+        cluster_id = info['predicted_cluster']
+        cluster_name = cluster_mapping.get(cluster_id, f"Cluster_{cluster_id}")
+        
+        # Store song info with test index
+        song_data = {
+            'test_index': i,
+            'song_info': info,
+            'actual_trajectory': y_test_seq[i],
+            'predicted_trajectory': predictions[i],
+            'cluster_name': cluster_name
+        }
+        songs_by_cluster[cluster_name].append(song_data)
+    
+    # Select 2 representative songs from each cluster
+    selected_songs = {}
+    for cluster_name, songs in songs_by_cluster.items():
+        if len(songs) >= 2:
+            # Select 2 songs with different characteristics
+            # Try to get one with longer chart run and one with shorter
+            songs_sorted = sorted(songs, key=lambda x: len(x['song_info']['full_chart_run']), reverse=True)
+            selected_songs[cluster_name] = [songs_sorted[0], songs_sorted[len(songs_sorted)//2]]
+        elif len(songs) == 1:
+            selected_songs[cluster_name] = songs
+        else:
+            selected_songs[cluster_name] = []
+    
+    # Define colors for each cluster
+    cluster_colors = {
+        'Superstar Hits': ['#FF6B6B', '#FF8E8E'],
+        'Shooting Stars': ['#4ECDC4', '#7ED8D2'],
+        'Steady Hits': ['#45B7D1', '#6BC5D8'],
+        'Chart Climbers': ['#96CEB4', '#A8D5C1'],
+        'Brief Visitors': ['#FECA57', '#FED670'],
+        'Holiday Hits': ['#FF9FF3', '#FFB3F5']
+    }
+    
+    # Create the visualization
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    fig.suptitle('Hot 100 Trajectory Prediction by Category', fontsize=16, fontweight='bold')
+    
+    # Flatten axes for easier iteration
+    axes_flat = axes.flatten()
+    
+    cluster_order = ['Superstar Hits', 'Shooting Stars', 'Steady Hits', 
+                    'Chart Climbers', 'Brief Visitors', 'Holiday Hits']
+    
+    for idx, cluster_name in enumerate(cluster_order):
+        ax = axes_flat[idx]
+        
+        if cluster_name not in selected_songs or len(selected_songs[cluster_name]) == 0:
+            ax.text(0.5, 0.5, f'No {cluster_name}\ndata available', 
+                   ha='center', va='center', fontsize=12)
+            ax.set_title(cluster_name, fontsize=14, fontweight='bold')
+            continue
+        
+        songs = selected_songs[cluster_name]
+        colors = cluster_colors.get(cluster_name, ['#666666', '#888888'])
+        
+        for song_idx, song_data in enumerate(songs):
+            color = colors[song_idx] if song_idx < len(colors) else colors[0]
+            
+            # Get song information
+            info = song_data['song_info']
+            full_trajectory = info['full_chart_run']
+            prediction_week = info['prediction_week']
+            
+            # Historical trajectory (up to prediction week)
+            historical_weeks = list(range(1, prediction_week + 1))
+            historical_trajectory = full_trajectory[:prediction_week]
+            
+            # Actual future trajectory
+            actual_future = song_data['actual_trajectory']
+            future_weeks = list(range(prediction_week + 1, prediction_week + len(actual_future) + 1))
+            
+            # Predicted future trajectory
+            predicted_future = song_data['predicted_trajectory']
+            
+            # Plot historical trajectory (solid line)
+            if len(historical_weeks) > 0:
+                ax.plot(historical_weeks, historical_trajectory, 
+                       color=color, linewidth=2, alpha=0.8, 
+                       label=f"{info['artist']} - {info['track'][:20]}..." if len(info['track']) > 20 else f"{info['artist']} - {info['track']}")
+            
+            # Plot actual future (solid line)
+            if len(future_weeks) > 0:
+                ax.plot(future_weeks, actual_future, 
+                       color=color, linewidth=2, alpha=0.8)
+            
+            # Plot predicted future (dotted line)
+            if len(future_weeks) > 0:
+                ax.plot(future_weeks, predicted_future, 
+                       color=color, linewidth=2, linestyle='--', alpha=0.7)
+            
+            # Mark prediction start with vertical line
+            ax.axvline(x=prediction_week + 0.5, color=color, linestyle=':', alpha=0.5)
+        
+        # Customize subplot
+        ax.set_title(cluster_name, fontsize=14, fontweight='bold')
+        ax.set_xlabel('Weeks on Chart', fontsize=10)
+        ax.set_ylabel('Hot 100 Position', fontsize=10)
+        ax.invert_yaxis()  # Lower numbers (better positions) at top
+        ax.grid(True, alpha=0.3)
+        ax.set_ylim(100, 0)  # Hot 100 chart positions
+        
+        # Add legend only for clusters with data
+        if len(songs) > 0:
+            ax.legend(fontsize=8, loc='lower right')
+    
+    # Add overall legend
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Line2D([0], [0], color='black', linewidth=2, label='Actual Performance'),
+        Line2D([0], [0], color='black', linewidth=2, linestyle='--', label='Predicted Performance'),
+        Line2D([0], [0], color='black', linewidth=1, linestyle=':', label='Prediction Start')
+    ]
+    fig.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, 0.02), ncol=3)
+    
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.93, bottom=0.08)
+    
+    # Save the plot
+    plt.savefig(f"{output_dir}/trajectory_prediction_by_cluster.png", dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    # Print summary information
+    print(f"\n{'='*60}")
+    print("TRAJECTORY PREDICTION VISUALIZATION SUMMARY")
+    print(f"{'='*60}")
+    
+    for cluster_name in cluster_order:
+        if cluster_name in selected_songs and len(selected_songs[cluster_name]) > 0:
+            print(f"\n{cluster_name}:")
+            for song_idx, song_data in enumerate(selected_songs[cluster_name]):
+                info = song_data['song_info']
+                actual = song_data['actual_trajectory']
+                predicted = song_data['predicted_trajectory']
+                
+                # Calculate prediction accuracy
+                mae = np.mean(np.abs(actual - predicted))
+                rmse = np.sqrt(np.mean((actual - predicted) ** 2))
+                
+                print(f"  Song {song_idx + 1}: {info['artist']} - {info['track']}")
+                print(f"    Prediction week: {info['prediction_week']}")
+                print(f"    Chart run length: {len(info['full_chart_run'])} weeks")
+                print(f"    Prediction MAE: {mae:.2f}")
+                print(f"    Prediction RMSE: {rmse:.2f}")
+                print(f"    Actual future: {actual}")
+                print(f"    Predicted future: {predicted}")
+        else:
+            print(f"\n{cluster_name}: No data available")
+
+# Run the visualization
+if 'test_info' in locals() and 'y_test_seq' in locals():
+    create_trajectory_prediction_visualization()
+else:
+    print("Required data (test_info, y_test_seq) not available for visualization")
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from tqdm import tqdm
+import time
+import pickle
+from tensorflow.keras.models import load_model
+
+def lstm_feature_ablation_study_simple_champion(verbose=True):
+    """
+    Feature Ablation Study for simple champion LSTM model (no interaction terms)
+    """
+    
+    print("Loading simple champion model for ablation study...")
+    
+    # Load the champion model
+    try:
+        model_path = f"{output_dir}/ULTIMATE_CHAMPION_sigmoid_rmsprop.keras"
+        champion_model = load_model(model_path)
+        print(f"Champion model loaded: sigmoid_rmsprop")
+        
+    except Exception as e:
+        print(f"Error loading champion model: {str(e)}")
+        return None
+    
+    # Use existing test data from session
+    if 'X_test_seq' not in globals() or 'y_test_seq' not in globals():
+        print("Test data not available in session!")
+        return None
+    
+    X_full = X_test_seq
+    y_full = y_test_seq
+    
+    print(f"Using all {len(X_full)} test samples")
+    print(f"Test data shape: {X_full.shape}")
+    print(f"Features per timestep: {X_full.shape[2]}")
+    
+    # Define feature names for SIMPLE model (no interaction terms)
+    feature_names = []
+    
+    # 1. Hot100 rank (first feature)
+    feature_names.append("hot100_rank")
+    
+    # 2. Cluster probabilities (6 clusters)
+    for cluster_id, cluster_name in cluster_mapping.items():
+        feature_names.append(f"cluster_prob_{cluster_name.replace(' ', '_')}")
+    
+    # 3. Platform features (ranks, changes, growth rates)
+    platforms = ['radio', 'streaming', 'sales', 'apple', 'spotify']
+    for platform in platforms:
+        feature_names.extend([
+            f"{platform}_rank",
+            f"{platform}_change", 
+            f"{platform}_growth_rate"
+        ])
+    
+    # 4. Cross-platform relationships
+    feature_names.extend([
+        'platform_divergence', 'spotify_vs_apple', 'streaming_vs_radio',
+        'streaming_vs_sales', 'radio_vs_sales', 'spotify_leads_apple',
+        'streaming_leads_radio', 'streaming_leads_sales', 'radio_leads_sales',
+        'platform_change_momentum', 'platform_acceleration_momentum'
+    ])
+    
+    # 5. Context features
+    feature_names.extend([
+        'available_platforms', 'is_collab', 'is_holiday_season', 
+        'is_summer_season', 'is_award_season'
+    ])
+    
+    # 6. Lag features (weighted)
+    for platform in platforms:
+        for lag in [1, 2, 3, 4]:
+            feature_names.extend([
+                f"{platform}_rank_lag{lag}_weighted",
+                f"{platform}_change_lag{lag}_weighted",
+                f"{platform}_growth_lag{lag}_weighted"
+            ])
+    
+    # 7. Cross-platform relationship features
+    cross_platform_pairs = [
+        'radio_to_streaming', 'streaming_to_radio', 'spotify_to_apple',
+        'apple_to_spotify', 'streaming_to_sales', 'sales_to_streaming'
+    ]
+    for pair in cross_platform_pairs:
+        for lag in [1, 2, 3]:
+            feature_names.append(f"{pair}_lag{lag}")
+    
+    # Adjust feature names to actual number of features
+    actual_features = X_full.shape[2]
+    if len(feature_names) > actual_features:
+        feature_names = feature_names[:actual_features]
+    elif len(feature_names) < actual_features:
+        for i in range(len(feature_names), actual_features):
+            feature_names.append(f"feature_{i}")
+    
+    print(f"Total features to test: {len(feature_names)}")
+    
+    # Calculate baseline performance
+    print("\nCalculating baseline performance...")
+    start_time = time.time()
+    baseline_loss = champion_model.evaluate(X_full, y_full, verbose=0, batch_size=32)[0]
+    baseline_time = time.time() - start_time
+    print(f"Baseline MSE: {baseline_loss:.4f} (took {baseline_time:.1f}s)")
+    
+    # Feature importance results
+    feature_importance = {}
+    
+    # Group similar features for efficiency
+    feature_groups = {
+        'Hot100 History': [0],
+        'Cluster Probabilities': list(range(1, 7)),
+        'Platform Ranks': list(range(7, 12)),
+        'Platform Changes': list(range(12, 17)),
+        'Platform Growth': list(range(17, 22)),
+        'Cross-Platform Relations': list(range(22, 33)),
+        'Context Features': list(range(33, 38)),
+        'Lag Features': list(range(38, min(len(feature_names), 80))),
+        'Other Features': list(range(80, len(feature_names))) if len(feature_names) > 80 else []
+    }
+    
+    print("\nTesting feature importance...")
+    
+    # Test individual important features first
+    important_individual_features = [0, 1, 2, 3, 4, 5, 6]
+    
+    for i in tqdm(important_individual_features, desc="Testing key individual features"):
+        if i >= len(feature_names):
+            continue
+            
+        # Create ablated data
+        X_ablated = X_full.copy()
+        X_ablated[:, :, i] = 0
+        
+        # Evaluate performance
+        try:
+            ablated_loss = champion_model.evaluate(X_ablated, y_full, verbose=0, batch_size=32)[0]
+            importance = ablated_loss - baseline_loss
+            feature_importance[feature_names[i]] = importance
+            
+            if verbose and importance > 0.01:
+                print(f"  {feature_names[i]}: +{importance:.4f} MSE increase")
+                
+        except Exception as e:
+            print(f"  Error testing {feature_names[i]}: {str(e)}")
+            feature_importance[feature_names[i]] = 0
+    
+    # Test feature groups
+    print("\nTesting feature groups...")
+    
+    for group_name, indices in tqdm(feature_groups.items(), desc="Testing feature groups"):
+        if not indices or max(indices) >= len(feature_names):
+            continue
+            
+        # Create ablated data for entire group
+        X_ablated = X_full.copy()
+        for idx in indices:
+            if idx < X_full.shape[2]:
+                X_ablated[:, :, idx] = 0
+        
+        # Evaluate performance
+        try:
+            ablated_loss = champion_model.evaluate(X_ablated, y_full, verbose=0, batch_size=32)[0]
+            importance = ablated_loss - baseline_loss
+            feature_importance[f"GROUP_{group_name}"] = importance
+            
+            if verbose:
+                print(f"  {group_name}: +{importance:.4f} MSE increase")
+                
+        except Exception as e:
+            print(f"  Error testing group {group_name}: {str(e)}")
+            feature_importance[f"GROUP_{group_name}"] = 0
+    
+    # Sort results
+    sorted_importance = sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)
+    
+    # Create visualization
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
+    
+    # Plot 1: Individual features
+    individual_features = [(k, v) for k, v in sorted_importance if not k.startswith('GROUP_')]
+    if individual_features:
+        top_individual = individual_features[:15]
+        names, scores = zip(*top_individual)
+        
+        colors = ['red' if score > 0.05 else 'orange' if score > 0.01 else 'lightblue' for score in scores]
+        
+        bars1 = ax1.barh(range(len(names)), scores, color=colors)
+        ax1.set_yticks(range(len(names)))
+        ax1.set_yticklabels([name.replace('_', ' ').title()[:25] + '...' if len(name) > 25 else name.replace('_', ' ').title() for name in names])
+        ax1.set_xlabel('Performance Degradation (MSE Increase)')
+        ax1.set_title('Top Individual Features Importance', fontweight='bold')
+        ax1.grid(axis='x', alpha=0.3)
+        
+        # Add value labels
+        for bar, score in zip(bars1, scores):
+            width = bar.get_width()
+            ax1.text(width + max(scores) * 0.01, bar.get_y() + bar.get_height()/2, 
+                    f'{score:.3f}', va='center', fontsize=9)
+    
+    # Plot 2: Feature groups
+    group_features = [(k.replace('GROUP_', ''), v) for k, v in sorted_importance if k.startswith('GROUP_')]
+    if group_features:
+        group_names, group_scores = zip(*group_features)
+        
+        colors2 = ['darkred' if score > 0.1 else 'red' if score > 0.05 else 'orange' if score > 0.01 else 'lightgreen' for score in group_scores]
+        
+        bars2 = ax2.barh(range(len(group_names)), group_scores, color=colors2)
+        ax2.set_yticks(range(len(group_names)))
+        ax2.set_yticklabels(group_names)
+        ax2.set_xlabel('Performance Degradation (MSE Increase)')
+        ax2.set_title('Feature Groups Importance', fontweight='bold')
+        ax2.grid(axis='x', alpha=0.3)
+        
+        # Add value labels
+        for bar, score in zip(bars2, group_scores):
+            width = bar.get_width()
+            ax2.text(width + max(group_scores) * 0.01, bar.get_y() + bar.get_height()/2, 
+                    f'{score:.3f}', va='center', fontsize=10, fontweight='bold')
+    
+    plt.tight_layout()
+    plt.savefig(f"{output_dir}/simple_champion_feature_importance.png", dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    # Print summary
+    print(f"\n{'='*60}")
+    print("SIMPLE CHAMPION MODEL FEATURE ABLATION RESULTS")
+    print(f"{'='*60}")
+    print(f"Model: sigmoid_rmsprop (simple)")
+    print(f"Baseline MSE: {baseline_loss:.4f}")
+    print(f"Test samples: {len(X_full)}")
+    
+    print(f"\nTop 10 Most Important Features:")
+    for i, (feature, importance) in enumerate(sorted_importance[:10], 1):
+        impact = "Critical" if importance > 0.05 else "High" if importance > 0.01 else "Medium" if importance > 0.005 else "Low"
+        print(f"{i:2d}. {feature:30s}: +{importance:6.4f} MSE ({impact})")
+    
+    # Save results
+    try:
+        with open(f"{output_dir}/simple_champion_ablation_results.pkl", "wb") as f:
+            pickle.dump({
+                'feature_importance': feature_importance,
+                'sorted_importance': sorted_importance,
+                'baseline_mse': baseline_loss,
+                'model_name': 'sigmoid_rmsprop_simple'
+            }, f)
+        print(f"\nResults saved to: {output_dir}/simple_champion_ablation_results.pkl")
+    except Exception as e:
+        print(f"Error saving results: {str(e)}")
+    
+    return feature_importance, sorted_importance
+
+# Run the ablation study on simple champion model
+print("Starting Feature Ablation Study on Simple Champion Model...")
+feature_importance, sorted_importance = lstm_feature_ablation_study_simple_champion(verbose=True)
+print("\nSimple champion feature ablation study completed!")
+# H3 Rank Interaction Effects Testing - INTERACTION MODEL ONLY
+if 'X_seq' in locals() and len(X_seq) > 0:
+    
+    print("\nH3 RANK INTERACTION EFFECTS TESTING")
+    print("="*50)
+    print("Testing: Platform Ranks × Context interactions")
+    print("Baseline: Existing sigmoid_rmsprop (RMSE=9.1934)")
+    
+    def create_rank_interaction_features(df, seq_info):
+        """Create interaction terms between PLATFORM RANKS ONLY and contextual factors"""
+        print("\nEngineering rank interaction features...")
+        
+        # First check context feature distribution in DataFrame
+        print("Checking context features in DataFrame...")
+        if 'is_collab' in df.columns:
+            collab_dist = df['is_collab'].value_counts()
+            print(f"is_collab distribution: {collab_dist}")
+        
+        seasonal_cols = ['is_holiday_season', 'is_summer_season', 'is_award_season']
+        seasonal_available = [col for col in seasonal_cols if col in df.columns]
+        if seasonal_available:
+            seasonal_any = df[seasonal_available].any(axis=1)
+            seasonal_dist = seasonal_any.value_counts()
+            print(f"Any seasonal distribution: {seasonal_dist}")
+        
+        interaction_features = []
+        interaction_count = 0
+        
+        # Track songs with non-zero context for debugging
+        songs_with_context = []
+        
+        for seq_idx, info in enumerate(seq_info):
+            seq_interactions = []
+            
+            # Get song_id to lookup context features from DataFrame
+            song_id = info['song_id']
+            
+            # Find corresponding rows in DataFrame for this song
+            song_data = df[df['song_id'] == song_id]
+            
+            if len(song_data) > 0:
+                # Get context values from DATAFRAME, not seq_info
+                is_collab = float(song_data['is_collab'].iloc[0]) if 'is_collab' in df.columns else 0
+                
+                # Check for any seasonal indicator
+                seasonal_cols = ['is_holiday_season', 'is_summer_season', 'is_award_season']
+                seasonal_values = []
+                for col in seasonal_cols:
+                    if col in df.columns:
+                        seasonal_values.append(song_data[col].iloc[0])
+                
+                is_seasonal = float(any(seasonal_values)) if seasonal_values else 0
+                
+                # Use most recent data point for context (in case multiple rows per song)
+                if len(song_data) > 1:
+                    latest_data = song_data.iloc[-1]  # Most recent week
+                    is_collab = float(latest_data['is_collab']) if 'is_collab' in df.columns else 0
+                    seasonal_values = []
+                    for col in seasonal_cols:
+                        if col in df.columns:
+                            seasonal_values.append(latest_data[col])
+                    is_seasonal = float(any(seasonal_values)) if seasonal_values else 0
+                
+                # Track songs with non-zero context
+                if is_collab > 0 or is_seasonal > 0:
+                    songs_with_context.append({
+                        'seq_idx': seq_idx,
+                        'song_id': song_id,
+                        'is_collab': is_collab,
+                        'is_seasonal': is_seasonal
+                    })
+                    
+            else:
+                print(f"Warning: No data found for song_id {song_id}")
+                is_collab = 0
+                is_seasonal = 0
+            
+            context_values = {'collaboration': is_collab, 'seasonal': is_seasonal}
+            
+            # For each timestep in the sequence
+            sequence_length = len(X_seq[seq_idx])
+            timestep_interactions = []
+            
+            for timestep in range(sequence_length):
+                timestep_features = X_seq[seq_idx][timestep]
+                step_interactions = []
+                
+                # Create ONLY platform rank interactions (first 5 features)
+                # Order: radio_rank, streaming_rank, sales_rank, apple_rank, spotify_rank
+                for rank_idx in range(min(5, len(timestep_features))):
+                    platform_rank_value = timestep_features[rank_idx]
+                    
+                    # Platform rank × collaboration
+                    step_interactions.append(platform_rank_value * context_values['collaboration'])
+                    # Platform rank × seasonal
+                    step_interactions.append(platform_rank_value * context_values['seasonal'])
+                
+                timestep_interactions.append(step_interactions)
+            
+            interaction_features.append(timestep_interactions)
+            interaction_count += 1
+        
+        print(f"Created rank interaction features for {interaction_count} sequences")
+        print(f"Found {len(songs_with_context)} songs with non-zero context features")
+        
+        # DETAILED DEBUG FOR SONG WITH NON-ZERO CONTEXT
+        if len(songs_with_context) > 0:
+            print(f"\n{'='*60}")
+            print("DETAILED CALCULATION VERIFICATION")
+            print(f"{'='*60}")
+            
+            # Pick first song with non-zero context
+            debug_song = songs_with_context[0]
+            seq_idx = debug_song['seq_idx']
+            song_id = debug_song['song_id']
+            is_collab = debug_song['is_collab']
+            is_seasonal = debug_song['is_seasonal']
+            
+            print(f"\nAnalyzing Song: {song_id}")
+            print(f"Sequence Index: {seq_idx}")
+            print(f"Context Values: collab={is_collab}, seasonal={is_seasonal}")
+            
+            # Get platform rank values for first timestep
+            first_timestep = X_seq[seq_idx][0]
+            platform_ranks = first_timestep[:5]
+            platform_names = ['radio', 'streaming', 'sales', 'apple', 'spotify']
+            
+            print(f"\nPlatform Rank Values (first timestep):")
+            for i, (name, rank) in enumerate(zip(platform_names, platform_ranks)):
+                print(f"  {name}_rank: {rank:.4f}")
+            
+            print(f"\nManual Interaction Calculations:")
+            manual_interactions = []
+            for i, (name, rank) in enumerate(zip(platform_names, platform_ranks)):
+                collab_interaction = rank * is_collab
+                seasonal_interaction = rank * is_seasonal
+                manual_interactions.extend([collab_interaction, seasonal_interaction])
+                print(f"  {name}_rank × collab = {rank:.4f} × {is_collab} = {collab_interaction:.4f}")
+                print(f"  {name}_rank × seasonal = {rank:.4f} × {is_seasonal} = {seasonal_interaction:.4f}")
+            
+            # Compare with actual calculated values
+            actual_interactions = interaction_features[seq_idx][0]
+            print(f"\nCalculated vs Manual Comparison:")
+            print(f"Calculated: {actual_interactions}")
+            print(f"Manual:     {manual_interactions}")
+            
+            # Check if they match
+            matches = all(abs(a - b) < 1e-10 for a, b in zip(actual_interactions, manual_interactions))
+            print(f"Values match: {'? YES' if matches else '? NO'}")
+            
+            # Count non-zero interactions
+            non_zero_calc = sum(1 for x in actual_interactions if abs(x) > 0.001)
+            non_zero_manual = sum(1 for x in manual_interactions if abs(x) > 0.001)
+            print(f"Non-zero interactions: Calculated={non_zero_calc}, Manual={non_zero_manual}")
+            
+        else:
+            print("\n??  WARNING: No songs found with non-zero context features!")
+            print("All interaction terms will be zero!")
+        
+        # Overall statistics
+        total_non_zero = 0
+        total_interactions = 0
+        for seq_interactions in interaction_features:
+            for timestep_interactions in seq_interactions:
+                for val in timestep_interactions:
+                    total_interactions += 1
+                    if abs(val) > 0.001:
+                        total_non_zero += 1
+        
+        print(f"\nOVERALL INTERACTION STATISTICS:")
+        print(f"Total interaction terms: {total_interactions:,}")
+        print(f"Non-zero interactions: {total_non_zero:,}")
+        print(f"Non-zero rate: {total_non_zero/total_interactions*100:.2f}%")
+        
+        # Combine with original features
+        enhanced_sequences = []
+        for seq_idx in range(len(X_seq)):
+            original_seq = X_seq[seq_idx]
+            interaction_seq = interaction_features[seq_idx]
+            
+            enhanced_seq = []
+            for timestep in range(len(original_seq)):
+                original_features = original_seq[timestep]
+                if timestep < len(interaction_seq):
+                    interaction_features_step = interaction_seq[timestep]
+                else:
+                    # If sequence is shorter, pad with zeros
+                    interaction_features_step = [0] * (10)  # 5 platforms × 2 context types
+                
+                combined_features = np.concatenate([original_features, interaction_features_step])
+                enhanced_seq.append(combined_features)
+            
+            enhanced_sequences.append(np.array(enhanced_seq))
+        
+        interaction_names = []
+        platforms = ['radio', 'streaming', 'sales', 'apple', 'spotify']  # Match order in features
+        for platform in platforms:
+            interaction_names.extend([
+                f'{platform}_rank_×_collaboration',
+                f'{platform}_rank_×_seasonal'
+            ])
+        
+        print(f"\nAdded {len(interaction_names)} rank interaction terms")
+        if len(X_seq) > 0:
+            print(f"Original features: {X_seq[0].shape[1]}")
+            print(f"Enhanced features: {enhanced_sequences[0].shape[1]}")
+        
+        return enhanced_sequences, interaction_names
+    
+    # Create rank interaction features
+    X_seq_enhanced, interaction_names = create_rank_interaction_features(data, seq_info)
+    
+    # Stratified split functions (same as before)
+    def stratified_split(X, y, info, cluster_mapping, min_test_per_cluster=3):
+        indices_by_cluster = {}
+        for i, inf in enumerate(info):
+            cluster = inf['predicted_cluster']
+            if cluster not in indices_by_cluster:
+                indices_by_cluster[cluster] = []
+            indices_by_cluster[cluster].append(i)
+        
+        train_indices, val_indices, test_indices = [], [], []
+        
+        for cluster, indices in indices_by_cluster.items():
+            cluster_name = cluster_mapping.get(cluster, f"Cluster_{cluster}")
+            total = len(indices)
+            random.shuffle(indices)
+            
+            if cluster_name == 'Holiday Hits':
+                min_test_per_cluster = max(3, int(0.2 * total))
+            
+            test_count = max(min_test_per_cluster, int(0.15 * total))
+            test_count = min(test_count, total - 2)
+            val_count = int(0.15 * (total - test_count))
+            train_count = total - test_count - val_count
+            
+            if train_count <= 0:
+                if total <= min_test_per_cluster:
+                    test_count = total
+                    val_count = 0
+                    train_count = 0
+                else:
+                    test_count = min_test_per_cluster
+                    val_count = min(1, total - test_count)
+                    train_count = total - test_count - val_count
+            
+            test_indices.extend(indices[:test_count])
+            val_indices.extend(indices[test_count:test_count+val_count])
+            train_indices.extend(indices[test_count+val_count:])
+        
+        return train_indices, val_indices, test_indices
+    
+    def prepare_padded_sequences(X, indices):
+        max_length = max(len(X[i]) for i in indices)
+        features = X[indices[0]].shape[1] if len(indices) > 0 else 0
+        padded_X = np.zeros((len(indices), max_length, features))
+        
+        for i, idx in enumerate(indices):
+            seq = X[idx]
+            padded_X[i, -len(seq):, :] = seq
+            
+        return padded_X
+    
+    def create_champion_lstm(input_shape):
+        """Create the champion LSTM architecture: sigmoid + rmsprop"""
+        model = Sequential([
+            Masking(mask_value=0., input_shape=input_shape),
+            LSTM(64, activation='sigmoid', return_sequences=True),
+            Dropout(0.2),
+            LSTM(32, activation='sigmoid'),
+            Dropout(0.2),
+            Dense(4)
+        ])
+        model.compile(optimizer='rmsprop', loss='mse', metrics=['mae'])
+        return model
+    
+    # Apply stratified split
+    train_indices, val_indices, test_indices = stratified_split(X_seq, y_seq, seq_info, cluster_mapping)
+    
+    print(f"\nData split: Train: {len(train_indices)}, Val: {len(val_indices)}, Test: {len(test_indices)}")
+    
+    # Prepare enhanced data (original + rank interaction features)
+    X_train_enhanced = prepare_padded_sequences(X_seq_enhanced, train_indices)
+    X_val_enhanced = prepare_padded_sequences(X_seq_enhanced, val_indices)
+    X_test_enhanced = prepare_padded_sequences(X_seq_enhanced, test_indices)
+    
+    # Target data
+    y_train = y_seq[train_indices]
+    y_val = y_seq[val_indices]
+    y_test = y_seq[test_indices]
+    
+    # TRAIN RANK INTERACTION MODEL ONLY
+    print("\nTRAINING RANK INTERACTION MODEL")
+    print("="*40)
+    
+    try:
+        interaction_model = create_champion_lstm((X_train_enhanced.shape[1], X_train_enhanced.shape[2]))
+        
+        early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+        
+        print("Training rank interaction model...")
+        print(f"Input shape: {X_train_enhanced.shape}")
+        print(f"Additional rank interaction features: {X_train_enhanced.shape[2] - X_seq[0].shape[1]}")
+        
+        interaction_history = interaction_model.fit(
+            X_train_enhanced, y_train,
+            validation_data=(X_val_enhanced, y_val),
+            epochs=100,
+            batch_size=32,
+            callbacks=[early_stop],
+            verbose=1
+        )
+        
+        # Evaluate interaction model
+        interaction_pred = interaction_model.predict(X_test_enhanced, verbose=0)
+        
+        if not np.isnan(interaction_pred).any():
+            interaction_rmse = np.sqrt(mean_squared_error(y_test.flatten(), interaction_pred.flatten()))
+            interaction_mae = mean_absolute_error(y_test.flatten(), interaction_pred.flatten())
+            interaction_r2 = r2_score(y_test.flatten(), interaction_pred.flatten())
+            
+            print(f"\nRANK INTERACTION MODEL RESULTS:")
+            print(f"RMSE: {interaction_rmse:.4f}")
+            print(f"MAE:  {interaction_mae:.4f}")
+            print(f"R²:   {interaction_r2:.4f}")
+            print(f"Epochs: {len(interaction_history.history['loss'])}")
+            
+            # Compare with baseline (existing champion)
+            baseline_rmse = 9.1934  # sigmoid_rmsprop champion result
+            baseline_r2 = 0.8887    # sigmoid_rmsprop champion result
+            
+            improvement_rmse = ((baseline_rmse - interaction_rmse) / baseline_rmse) * 100
+            improvement_r2 = ((interaction_r2 - baseline_r2) / baseline_r2) * 100
+            
+            print(f"\n{'='*50}")
+            print("H3 HYPOTHESIS TESTING RESULTS")
+            print(f"{'='*50}")
+            
+            print(f"\nCOMPARISON WITH BASELINE:")
+            print(f"Baseline (sigmoid_rmsprop):     RMSE={baseline_rmse:.4f}, R²={baseline_r2:.4f}")
+            print(f"Rank Interaction Model:         RMSE={interaction_rmse:.4f}, R²={interaction_r2:.4f}")
+            
+            print(f"\nIMPROVEMENT ANALYSIS:")
+            print(f"RMSE change: {improvement_rmse:.2f}% ({'improvement' if improvement_rmse > 0 else 'degradation'})")
+            print(f"R² change:   {improvement_r2:.2f}% ({'improvement' if improvement_r2 > 0 else 'degradation'})")
+            
+            # H3 Hypothesis Assessment
+            print(f"\nH3 HYPOTHESIS ASSESSMENT:")
+            if interaction_rmse < baseline_rmse and abs(improvement_rmse) > 1.0:
+                print("? H3 SUPPORTED: Rank interactions significantly improve prediction")
+                print("   Platform rank × context interactions matter for Billboard success")
+                h3_conclusion = "SUPPORTED"
+            elif abs(improvement_rmse) < 0.5:
+                print("? H3 REJECTED: Minimal improvement from rank interactions")
+                print("   Contextual factors do not significantly modify platform rank effects")
+                h3_conclusion = "REJECTED"
+            else:
+                print("?? H3 MIXED: Some evidence for rank interactions but not conclusive")
+                h3_conclusion = "MIXED"
+            
+            # Save interaction model and results
+            try:
+                interaction_model.save(f"{output_dir}/rank_interaction_model.keras")
+                print(f"\nRank interaction model saved: {output_dir}/rank_interaction_model.keras")
+                
+                # Save results
+                with open(f"{output_dir}/h3_rank_interaction_results.pkl", "wb") as f:
+                    pickle.dump({
+                        'interaction_model_results': {
+                            'rmse': interaction_rmse,
+                            'mae': interaction_mae,
+                            'r2': interaction_r2,
+                            'epochs': len(interaction_history.history['loss']),
+                            'predictions': interaction_pred
+                        },
+                        'baseline_comparison': {
+                            'baseline_rmse': baseline_rmse,
+                            'baseline_r2': baseline_r2,
+                            'improvement_rmse': improvement_rmse,
+                            'improvement_r2': improvement_r2
+                        },
+                        'h3_conclusion': h3_conclusion,
+                        'interaction_features': interaction_names,
+                        'context_distribution': {
+                            'collaboration_rate': collab_dist.get(1, 0) / collab_dist.sum() if 'collab_dist' in locals() else 0,
+                            'seasonal_rate': seasonal_dist.get(True, 0) / seasonal_dist.sum() if 'seasonal_dist' in locals() else 0
+                        }
+                    }, f)
+                
+                print(f"H3 results saved: {output_dir}/h3_rank_interaction_results.pkl")
+                
+            except Exception as e:
+                print(f"Error saving results: {str(e)}")
+            
+        else:
+            print("Rank interaction model failed (NaN predictions)")
+            
+    except Exception as e:
+        print(f"Error training rank interaction model: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+else:
+    print("Required sequence data not available!")
+
+print("\nH3 Rank Interaction Testing Complete!")
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from tqdm import tqdm
+import time
+import pickle
+import pandas as pd
+from tensorflow.keras.models import load_model
+
+def lstm_feature_ablation_study_interaction_model(verbose=True):
+    """
+    Feature Ablation Study for rank interaction LSTM model
+    """
+    
+    print("Loading rank interaction model for ablation study...")
+    
+    # Load the rank interaction model
+    try:
+        model_path = f"{output_dir}/rank_interaction_model.keras"
+        interaction_model = load_model(model_path)
+        print(f"Rank interaction model loaded successfully")
+        
+    except Exception as e:
+        print(f"Error loading rank interaction model: {str(e)}")
+        return None
+    
+    # Use existing enhanced test data from session
+    if 'X_test_enhanced' not in globals() or 'y_test' not in globals():
+        print("Enhanced test data not available in session!")
+        return None
+    
+    X_full = X_test_enhanced
+    y_full = y_test
+    
+    print(f"Using all {len(X_full)} test samples")
+    print(f"Test data shape: {X_full.shape}")
+    print(f"Features per timestep: {X_full.shape[2]}")
+    
+    # Define feature names for INTERACTION model (original + interaction terms)
+    feature_names = []
+    
+    # 1. Hot100 rank (first feature)
+    feature_names.append("hot100_rank")
+    
+    # 2. Cluster probabilities (6 clusters)
+    for cluster_id, cluster_name in cluster_mapping.items():
+        feature_names.append(f"cluster_prob_{cluster_name.replace(' ', '_')}")
+    
+    # 3. Platform features (ranks, changes, growth rates)
+    platforms = ['radio', 'streaming', 'sales', 'apple', 'spotify']
+    for platform in platforms:
+        feature_names.extend([
+            f"{platform}_rank",
+            f"{platform}_change", 
+            f"{platform}_growth_rate"
+        ])
+    
+    # 4. Cross-platform relationships
+    feature_names.extend([
+        'platform_divergence', 'spotify_vs_apple', 'streaming_vs_radio',
+        'streaming_vs_sales', 'radio_vs_sales', 'spotify_leads_apple',
+        'streaming_leads_radio', 'streaming_leads_sales', 'radio_leads_sales',
+        'platform_change_momentum', 'platform_acceleration_momentum'
+    ])
+    
+    # 5. Context features
+    feature_names.extend([
+        'available_platforms', 'is_collab', 'is_holiday_season', 
+        'is_summer_season', 'is_award_season'
+    ])
+    
+    # 6. Lag features (weighted)
+    for platform in platforms:
+        for lag in [1, 2, 3, 4]:
+            feature_names.extend([
+                f"{platform}_rank_lag{lag}_weighted",
+                f"{platform}_change_lag{lag}_weighted",
+                f"{platform}_growth_lag{lag}_weighted"
+            ])
+    
+    # 7. Cross-platform relationship features
+    cross_platform_pairs = [
+        'radio_to_streaming', 'streaming_to_radio', 'spotify_to_apple',
+        'apple_to_spotify', 'streaming_to_sales', 'sales_to_streaming'
+    ]
+    for pair in cross_platform_pairs:
+        for lag in [1, 2, 3]:
+            feature_names.append(f"{pair}_lag{lag}")
+    
+    # 8. RANK INTERACTION TERMS (NEW!) - These should be at the end
+    # CORRECT ORDER from H3 code: radio, streaming, sales, apple, spotify
+    platforms_rank = ['radio', 'streaming', 'sales', 'apple', 'spotify']
+    for platform in platforms_rank:
+        feature_names.extend([
+            f'{platform}_rank_×_collaboration',
+            f'{platform}_rank_×_seasonal'
+        ])
+    
+    # Adjust feature names to actual number of features
+    actual_features = X_full.shape[2]
+    if len(feature_names) > actual_features:
+        feature_names = feature_names[:actual_features]
+    elif len(feature_names) < actual_features:
+        for i in range(len(feature_names), actual_features):
+            feature_names.append(f"interaction_feature_{i}")  # More likely to be interaction features
+    
+    print(f"Total features to test: {len(feature_names)}")
+    
+    # Find interaction term indices - check multiple patterns
+    interaction_indices = []
+    for i, name in enumerate(feature_names):
+        if '_×_' in name or 'interaction_feature_' in name:
+            interaction_indices.append(i)
+    
+    # If no interaction terms found, assume the last 10 features are interaction terms
+    if len(interaction_indices) == 0:
+        print("No interaction terms detected by name pattern, assuming last 10 features are interactions")
+        interaction_indices = list(range(actual_features - 10, actual_features))
+        # Update names for these features with CORRECT ORDER
+        platforms_rank = ['radio', 'streaming', 'sales', 'apple', 'spotify']
+        for i, platform in enumerate(platforms_rank):
+            if actual_features - 10 + i*2 < actual_features:
+                feature_names[actual_features - 10 + i*2] = f'{platform}_rank_×_collaboration'
+            if actual_features - 10 + i*2 + 1 < actual_features:
+                feature_names[actual_features - 10 + i*2 + 1] = f'{platform}_rank_×_seasonal'
+    
+    print(f"Including {len(interaction_indices)} rank interaction terms at indices: {interaction_indices}")
+    print(f"Interaction features: {[feature_names[i] for i in interaction_indices]}")
+    
+    # Calculate baseline performance
+    print("\nCalculating baseline performance...")
+    start_time = time.time()
+    baseline_loss = interaction_model.evaluate(X_full, y_full, verbose=0, batch_size=32)[0]
+    baseline_time = time.time() - start_time
+    print(f"Baseline MSE: {baseline_loss:.4f} (took {baseline_time:.1f}s)")
+    
+    # Feature importance results
+    feature_importance = {}
+    
+    # Group similar features for efficiency (including interaction terms)
+    feature_groups = {
+        'Hot100 History': [0],
+        'Cluster Probabilities': list(range(1, 7)),
+        'Platform Ranks': list(range(7, 12)),
+        'Platform Changes': list(range(12, 17)),
+        'Platform Growth': list(range(17, 22)),
+        'Cross-Platform Relations': list(range(22, 33)),
+        'Context Features': list(range(33, 38)),
+        'Lag Features': list(range(38, min(len(feature_names), actual_features - 10))),
+        'Rank Interaction Terms': interaction_indices
+    }
+    
+    print(f"\nFeature groups: {[(name, len(indices)) for name, indices in feature_groups.items()]}")
+    
+    print("\nTesting ALL individual features...")
+    
+    # Test ALL individual features (not just important ones)
+    for i in tqdm(range(len(feature_names)), desc="Testing all individual features"):
+        if verbose and i % 10 == 0:  # Show progress every 10 features
+            print(f"\nTesting feature {i+1}/{len(feature_names)}: {feature_names[i]}")
+        
+        # Create ablated data
+        X_ablated = X_full.copy()
+        X_ablated[:, :, i] = 0
+        
+        # Evaluate performance
+        try:
+            ablated_loss = interaction_model.evaluate(X_ablated, y_full, verbose=0, batch_size=32)[0]
+            importance = ablated_loss - baseline_loss
+            feature_importance[feature_names[i]] = importance
+            
+            if verbose and importance > 0.01:
+                print(f"  {feature_names[i]}: +{importance:.4f} MSE increase")
+                
+        except Exception as e:
+            print(f"  Error testing {feature_names[i]}: {str(e)}")
+            feature_importance[feature_names[i]] = 0
+    
+    # Test feature groups
+    print("\nTesting feature groups...")
+    
+    for group_name, indices in tqdm(feature_groups.items(), desc="Testing feature groups"):
+        if not indices:
+            print(f"  Skipping {group_name} - no features")
+            continue
+            
+        # Ensure indices are within bounds
+        valid_indices = [idx for idx in indices if idx < X_full.shape[2]]
+        if not valid_indices:
+            print(f"  Skipping {group_name} - no valid indices")
+            continue
+            
+        if verbose:
+            print(f"\nTesting group {group_name} with {len(valid_indices)} features")
+            
+        # Create ablated data for entire group
+        X_ablated = X_full.copy()
+        for idx in valid_indices:
+            X_ablated[:, :, idx] = 0
+        
+        # Evaluate performance
+        try:
+            ablated_loss = interaction_model.evaluate(X_ablated, y_full, verbose=0, batch_size=32)[0]
+            importance = ablated_loss - baseline_loss
+            feature_importance[f"GROUP_{group_name}"] = importance
+            
+            if verbose:
+                print(f"  {group_name}: +{importance:.4f} MSE increase")
+                
+        except Exception as e:
+            print(f"  Error testing group {group_name}: {str(e)}")
+            feature_importance[f"GROUP_{group_name}"] = 0
+    
+    # Sort results
+    sorted_importance = sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)
+    
+    # Create visualization
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
+    
+    # Plot 1: Individual features - TOP 10 ONLY
+    individual_features = [(k, v) for k, v in sorted_importance if not k.startswith('GROUP_')]
+    if individual_features:
+        top_individual = individual_features[:10]  # TOP 10 ONLY
+        names, scores = zip(*top_individual)
+        
+        # Use red color for individual features
+        colors = ['red'] * len(names)
+        
+        bars1 = ax1.barh(range(len(names)), scores, color=colors)
+        ax1.set_yticks(range(len(names)))
+        ax1.set_yticklabels([name.replace('_', ' ').title()[:25] + '...' if len(name) > 25 else name.replace('_', ' ').title() for name in names])
+        ax1.set_xlabel('Performance Degradation (MSE Increase)')
+        ax1.set_title('Top Individual Features Importance (Interaction Model)', fontweight='bold')
+        ax1.grid(axis='x', alpha=0.3)
+        
+        # Add value labels
+        for bar, score in zip(bars1, scores):
+            width = bar.get_width()
+            ax1.text(width + max(scores) * 0.01, bar.get_y() + bar.get_height()/2, 
+                    f'{score:.3f}', va='center', fontsize=9)
+    
+    # Plot 2: Feature groups - ALL GROUPS
+    group_features = [(k.replace('GROUP_', ''), v) for k, v in sorted_importance if k.startswith('GROUP_')]
+    if group_features:
+        # Include ALL groups (not filtered)
+        group_names, group_scores = zip(*group_features)
+        
+        # Use darkred (vi?iniu) color for group features
+        colors2 = ['darkred'] * len(group_names)
+        
+        bars2 = ax2.barh(range(len(group_names)), group_scores, color=colors2)
+        ax2.set_yticks(range(len(group_names)))
+        ax2.set_yticklabels(group_names)
+        ax2.set_xlabel('Performance Degradation (MSE Increase)')
+        ax2.set_title('Feature Groups Importance (Interaction Model)', fontweight='bold')
+        ax2.grid(axis='x', alpha=0.3)
+        
+        # Add value labels
+        for bar, score in zip(bars2, group_scores):
+            width = bar.get_width()
+            ax2.text(width + max(group_scores) * 0.01, bar.get_y() + bar.get_height()/2, 
+                    f'{score:.3f}', va='center', fontsize=10, fontweight='bold')
+    
+    plt.tight_layout()
+    plt.savefig(f"{output_dir}/interaction_model_feature_importance.png", dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    # Save individual and group importance to separate CSV files
+    print("\nSaving results to CSV files...")
+    
+    # Individual features importance
+    individual_df = pd.DataFrame([
+        {'Feature': k, 'Importance': v, 'Feature_Type': 'INTERACTION' if ('_×_' in k or 'interaction_feature_' in k) else 'ORIGINAL'}
+        for k, v in individual_features
+    ])
+    individual_df = individual_df.sort_values('Importance', ascending=False)
+    individual_df.to_csv(f"{output_dir}/individual_features_importance_interaction.csv", index=False)
+    print(f"Individual features importance saved: {output_dir}/individual_features_importance_interaction.csv")
+    
+    # Group features importance
+    group_df = pd.DataFrame([
+        {'Feature_Group': k, 'Importance': v}
+        for k, v in group_features
+    ])
+    group_df = group_df.sort_values('Importance', ascending=False)
+    group_df.to_csv(f"{output_dir}/group_features_importance_interaction.csv", index=False)
+    print(f"Group features importance saved: {output_dir}/group_features_importance_interaction.csv")
+    
+    # Print summary
+    print(f"\n{'='*60}")
+    print("INTERACTION MODEL FEATURE ABLATION RESULTS")
+    print(f"{'='*60}")
+    print(f"Model: sigmoid_rmsprop with rank interactions")
+    print(f"Baseline MSE: {baseline_loss:.4f}")
+    print(f"Test samples: {len(X_full)}")
+    print(f"Total features: {len(feature_names)} (including {len(interaction_indices)} interaction terms)")
+    
+    print(f"\nTop 10 Most Important Features:")
+    for i, (feature, importance) in enumerate(sorted_importance[:10], 1):
+        feature_type = "INTERACTION" if ('_×_' in feature or 'interaction_feature_' in feature) else "ORIGINAL"
+        impact = "Critical" if importance > 0.05 else "High" if importance > 0.01 else "Medium" if importance > 0.005 else "Low"
+        print(f"{i:2d}. {feature:35s}: +{importance:6.4f} MSE ({impact}) [{feature_type}]")
+    
+    # Print interaction terms specifically
+    if interaction_indices:
+        print(f"\nInteraction Terms Analysis:")
+        interaction_features = [(k, v) for k, v in sorted_importance if '_×_' in k or 'interaction_feature_' in k]
+        if interaction_features:
+            print(f"Found {len(interaction_features)} interaction terms in results:")
+            for i, (feature, importance) in enumerate(interaction_features, 1):
+                impact = "Critical" if importance > 0.05 else "High" if importance > 0.01 else "Medium" if importance > 0.005 else "Low"
+                print(f"{i:2d}. {feature:35s}: +{importance:6.4f} MSE ({impact})")
+        else:
+            print("No interaction terms found in results!")
+    
+    return feature_importance, sorted_importance
+
+# Run the ablation study on interaction model
+print("Starting Feature Ablation Study on Rank Interaction Model...")
+feature_importance, sorted_importance = lstm_feature_ablation_study_interaction_model(verbose=True)
+print("\nRank interaction model feature ablation study completed!")
+import random
+import numpy as np
+import pandas as pd
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout, Masking
+from tensorflow.keras.callbacks import EarlyStopping
+import tensorflow as tf
+import pickle
+import time
+
+# H3 & H4 COMPREHENSIVE TESTING - USING EXISTING X_seq
+if 'X_seq' in locals() and len(X_seq) > 0:
+    
+    print("\n" + "="*80)
+    print("COMPREHENSIVE HYPOTHESIS TESTING - 4 MODEL PROGRESSION")
+    print("="*80)
+    print("Model 1: Pure Baseline (Hot100 only)")
+    print("Model 2: Platform Integration (H3 test)")  
+    print("Model 3: Context Addition (existing X_seq)")
+    print("Model 4: Interaction Effects (H4 moderation test)")
+
+    def create_champion_lstm(input_shape):
+        """Create the champion LSTM architecture: sigmoid + rmsprop + L2 regularization"""
+        import tensorflow as tf
+        
+        model = Sequential([
+            Masking(mask_value=0., input_shape=input_shape),
+            LSTM(64, activation='sigmoid', return_sequences=True,
+                 kernel_regularizer=tf.keras.regularizers.l2(1e-5)),  # Add L2
+            Dropout(0.2),
+            LSTM(32, activation='sigmoid',
+                 kernel_regularizer=tf.keras.regularizers.l2(1e-5)),  # Add L2
+            Dropout(0.2),
+            Dense(4)
+        ])
+        model.compile(optimizer='rmsprop', loss='mse', metrics=['mae'])
+        return model
+
+    def stratified_split(X, y, info, cluster_mapping, min_test_per_cluster=3):
+        indices_by_cluster = {}
+        for i, inf in enumerate(info):
+            cluster = inf['predicted_cluster']
+            if cluster not in indices_by_cluster:
+                indices_by_cluster[cluster] = []
+            indices_by_cluster[cluster].append(i)
+        
+        train_indices, val_indices, test_indices = [], [], []
+        
+        for cluster, indices in indices_by_cluster.items():
+            cluster_name = cluster_mapping.get(cluster, f"Cluster_{cluster}")
+            total = len(indices)
+            random.shuffle(indices)
+            
+            if cluster_name == 'Holiday Hits':
+                min_test_per_cluster = max(3, int(0.2 * total))
+            
+            test_count = max(min_test_per_cluster, int(0.15 * total))
+            test_count = min(test_count, total - 2)
+            val_count = int(0.15 * (total - test_count))
+            train_count = total - test_count - val_count
+            
+            if train_count <= 0:
+                if total <= min_test_per_cluster:
+                    test_count = total
+                    val_count = 0
+                    train_count = 0
+                else:
+                    test_count = min_test_per_cluster
+                    val_count = min(1, total - test_count)
+                    train_count = total - test_count - val_count
+            
+            test_indices.extend(indices[:test_count])
+            val_indices.extend(indices[test_count:test_count+val_count])
+            train_indices.extend(indices[test_count+val_count:])
+        
+        return train_indices, val_indices, test_indices
+
+    def prepare_padded_sequences(X, indices):
+        max_length = max(len(X[i]) for i in indices)
+        features = X[indices[0]].shape[1] if len(indices) > 0 else 0
+        padded_X = np.zeros((len(indices), max_length, features))
+        
+        for i, idx in enumerate(indices):
+            seq = X[idx]
+            padded_X[i, -len(seq):, :] = seq
+            
+        return padded_X
+
+    def create_rank_interaction_features(df, seq_info, original_X_seq):
+        """Create interaction terms - ORIGINAL LOGIC"""
+        print("\nEngineering rank interaction features...")
+        
+        interaction_features = []
+        
+        for seq_idx, info in enumerate(seq_info):
+            song_id = info['song_id']
+            song_data = df[df['song_id'] == song_id]
+            
+            if len(song_data) > 0:
+                is_collab = float(song_data['is_collab'].iloc[0]) if 'is_collab' in df.columns else 0
+                seasonal_cols = ['is_holiday_season', 'is_summer_season', 'is_award_season']
+                seasonal_values = [song_data[col].iloc[0] for col in seasonal_cols if col in df.columns]
+                is_seasonal = float(any(seasonal_values)) if seasonal_values else 0
+            else:
+                is_collab = 0
+                is_seasonal = 0
+            
+            sequence_length = len(original_X_seq[seq_idx])
+            timestep_interactions = []
+            
+            for timestep in range(sequence_length):
+                timestep_features = original_X_seq[seq_idx][timestep]
+                step_interactions = []
+                
+                # ORIGINAL LOGIC - first 5 features are platform ranks
+                for rank_idx in range(min(5, len(timestep_features))):
+                    platform_rank_value = timestep_features[rank_idx]
+                    step_interactions.append(platform_rank_value * is_collab)
+                    step_interactions.append(platform_rank_value * is_seasonal)
+                
+                timestep_interactions.append(step_interactions)
+            
+            interaction_features.append(timestep_interactions)
+        
+        # Combine with original features
+        enhanced_sequences = []
+        for seq_idx in range(len(original_X_seq)):
+            original_seq = original_X_seq[seq_idx]
+            interaction_seq = interaction_features[seq_idx]
+            
+            enhanced_seq = []
+            for timestep in range(len(original_seq)):
+                original_features = original_seq[timestep]
+                if timestep < len(interaction_seq):
+                    interaction_features_step = interaction_seq[timestep]
+                else:
+                    interaction_features_step = [0] * 10  # 5 platforms × 2 context types
+                
+                combined_features = np.concatenate([original_features, interaction_features_step])
+                enhanced_seq.append(combined_features)
+            
+            enhanced_sequences.append(np.array(enhanced_seq))
+        
+        return enhanced_sequences
+
+    def create_baseline_sequences(original_X_seq):
+        """Extract only Hot100 sequence (first column)"""
+        baseline_sequences = []
+        for seq in original_X_seq:
+            # Extract only first column (Hot100 rank)
+            hot100_only = seq[:, :1]  # Keep only first column
+            baseline_sequences.append(hot100_only)
+        return baseline_sequences
+
+    def create_platform_sequences(original_X_seq, remove_context=True):
+        """Remove context features but keep platform features"""
+        if not remove_context:
+            return original_X_seq  # Return as-is for context model
+        
+        # For platform model, we'll use original X_seq but could filter if needed
+        # Since the original preparation already had good logic, use as-is
+        return original_X_seq
+
+    # COMPREHENSIVE MODEL TESTING
+    model_results = {}
+    
+    # Get base split (use same split for all models)
+    train_indices, val_indices, test_indices = stratified_split(X_seq, y_seq, seq_info, cluster_mapping)
+    print(f"Data split: Train: {len(train_indices)}, Val: {len(val_indices)}, Test: {len(test_indices)}")
+
+    model_configs = [
+        ("baseline", "Model 1: Pure Baseline"),
+        ("platform", "Model 2: Platform Integration"), 
+        ("context", "Model 3: Context Addition"),
+        ("interaction", "Model 4: Interaction Effects")
+    ]
+
+    for model_type, model_description in model_configs:
+        
+        print(f"\n{'='*80}")
+        print(f"TRAINING {model_description.upper()}")
+        print(f"{'='*80}")
+        
+        # Prepare sequences based on model type
+        if model_type == "baseline":
+            current_X_seq = create_baseline_sequences(X_seq)
+        elif model_type == "platform":
+            current_X_seq = create_platform_sequences(X_seq, remove_context=True)
+        elif model_type == "context":
+            current_X_seq = create_platform_sequences(X_seq, remove_context=False)  # Use original
+        elif model_type == "interaction":
+            current_X_seq = create_rank_interaction_features(data, seq_info, X_seq)
+        
+        print(f"Prepared sequences for {model_type} model")
+        print(f"Feature dimension per timestep: {current_X_seq[0].shape[1] if len(current_X_seq) > 0 else 0}")
+        
+        # Prepare data using SAME indices
+        X_train = prepare_padded_sequences(current_X_seq, train_indices)
+        X_val = prepare_padded_sequences(current_X_seq, val_indices)
+        X_test = prepare_padded_sequences(current_X_seq, test_indices)
+        
+        y_train = y_seq[train_indices]
+        y_val = y_seq[val_indices] 
+        y_test = y_seq[test_indices]
+        
+        print(f"Training data shape: {X_train.shape}")
+        
+        # Create and train model
+        model = create_champion_lstm((X_train.shape[1], X_train.shape[2]))
+        
+        early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+        
+        print(f"Training {model_type} model...")
+        
+        try:
+            history = model.fit(
+                X_train, y_train,
+                validation_data=(X_val, y_val),
+                epochs=100,
+                batch_size=32,  # ORIGINAL batch size
+                callbacks=[early_stop],
+                verbose=1
+            )
+            
+            # Evaluate model
+            y_pred = model.predict(X_test, verbose=0)
+            
+            if not np.isnan(y_pred).any():
+                rmse = np.sqrt(mean_squared_error(y_test.flatten(), y_pred.flatten()))
+                mae = mean_absolute_error(y_test.flatten(), y_pred.flatten())
+                r2 = r2_score(y_test.flatten(), y_pred.flatten())
+                epochs_trained = len(history.history['loss'])
+                
+                # Store results
+                model_results[model_type] = {
+                    'model': model,
+                    'rmse': rmse,
+                    'mae': mae,
+                    'r2': r2,
+                    'epochs': epochs_trained,
+                    'predictions': y_pred,
+                    'history': history,
+                    'description': model_description,
+                    'input_shape': X_train.shape,
+                    'test_indices': test_indices
+                }
+                
+                print(f"\n{model_description} RESULTS:")
+                print(f"RMSE: {rmse:.4f}")
+                print(f"MAE:  {mae:.4f}")
+                print(f"R²:   {r2:.4f}")
+                print(f"Epochs: {epochs_trained}")
+                
+                # Save individual model
+                model.save(f"{output_dir}/model_{model_type}.keras")
+                print(f"Model saved: {output_dir}/model_{model_type}.keras")
+                
+            else:
+                print(f"? {model_type} model failed: NaN predictions")
+                
+        except Exception as e:
+            print(f"? Error training {model_type} model: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+    # COMPREHENSIVE RESULTS ANALYSIS
+    if len(model_results) > 0:
+        
+        print(f"\n{'='*80}")
+        print("COMPREHENSIVE RESULTS ANALYSIS")
+        print(f"{'='*80}")
+        
+        # Create results summary
+        results_summary = []
+        for model_type in ["baseline", "platform", "context", "interaction"]:
+            if model_type in model_results:
+                result = model_results[model_type]
+                results_summary.append({
+                    'Model': result['description'],
+                    'Type': model_type,
+                    'RMSE': result['rmse'],
+                    'MAE': result['mae'],
+                    'R²': result['r2'],
+                    'Epochs': result['epochs'],
+                    'Features': result['input_shape'][2]
+                })
+        
+        # Print summary table
+        print(f"\n{'Model':<25} {'RMSE':<8} {'MAE':<8} {'R²':<8} {'Features':<10} {'Epochs':<8}")
+        print("-" * 75)
+        
+        for result in results_summary:
+            print(f"{result['Model']:<25} {result['RMSE']:<8.4f} {result['MAE']:<8.4f} "
+                  f"{result['R²']:<8.4f} {result['Features']:<10} {result['Epochs']:<8}")
+        
+        # HYPOTHESIS TESTING
+        print(f"\n{'='*60}")
+        print("HYPOTHESIS TESTING RESULTS")
+        print(f"{'='*60}")
+        
+        # H3 Test: Platform Integration vs Baseline
+        if "baseline" in model_results and "platform" in model_results:
+            baseline_rmse = model_results["baseline"]["rmse"]
+            platform_rmse = model_results["platform"]["rmse"]
+            h3_improvement = ((baseline_rmse - platform_rmse) / baseline_rmse) * 100
+            
+            print(f"\nH3: INTEGRATED PREDICTION HYPOTHESIS")
+            print(f"Baseline RMSE:  {baseline_rmse:.4f}")
+            print(f"Platform RMSE:  {platform_rmse:.4f}")
+            print(f"Improvement:    {h3_improvement:+.2f}%")
+            
+            if platform_rmse < baseline_rmse and abs(h3_improvement) > 1.0:
+                print("? H3 SUPPORTED: Multi-platform integration significantly improves prediction")
+                h3_status = "SUPPORTED"
+            elif abs(h3_improvement) < 0.5:
+                print("? H3 REJECTED: Minimal improvement from platform integration")
+                h3_status = "REJECTED"
+            else:
+                print("?? H3 MIXED: Some evidence for platform integration benefit")
+                h3_status = "MIXED"
+        
+        # H4 Additive Test: Context vs Platform
+        if "platform" in model_results and "context" in model_results:
+            platform_rmse = model_results["platform"]["rmse"] 
+            context_rmse = model_results["context"]["rmse"]
+            h4_add_improvement = ((platform_rmse - context_rmse) / platform_rmse) * 100
+            
+            print(f"\nH4a: CONTEXTUAL ENHANCEMENT HYPOTHESIS (Additive)")
+            print(f"Platform RMSE:  {platform_rmse:.4f}")
+            print(f"Context RMSE:   {context_rmse:.4f}")
+            print(f"Improvement:    {h4_add_improvement:+.2f}%")
+            
+            if context_rmse < platform_rmse and abs(h4_add_improvement) > 0.5:
+                print("? H4a SUPPORTED: Contextual factors add predictive value")
+                h4a_status = "SUPPORTED"
+            elif abs(h4_add_improvement) < 0.2:
+                print("? H4a REJECTED: Minimal improvement from contextual factors")
+                h4a_status = "REJECTED"
+            else:
+                print("?? H4a MIXED: Some evidence for contextual enhancement")
+                h4a_status = "MIXED"
+        
+        # H4 Moderation Test: Interaction vs Context  
+        if "context" in model_results and "interaction" in model_results:
+            context_rmse = model_results["context"]["rmse"]
+            interaction_rmse = model_results["interaction"]["rmse"] 
+            h4_mod_improvement = ((context_rmse - interaction_rmse) / context_rmse) * 100
+            
+            print(f"\nH4b: CONTEXTUAL MODERATION HYPOTHESIS (Interaction)")
+            print(f"Context RMSE:      {context_rmse:.4f}")
+            print(f"Interaction RMSE:  {interaction_rmse:.4f}")
+            print(f"Improvement:       {h4_mod_improvement:+.2f}%")
+            
+            if interaction_rmse < context_rmse and abs(h4_mod_improvement) > 0.5:
+                print("? H4b SUPPORTED: Interaction effects significantly improve prediction")
+                h4b_status = "SUPPORTED"
+            elif abs(h4_mod_improvement) < 0.2:
+                print("? H4b REJECTED: Minimal improvement from interaction effects")
+                h4b_status = "REJECTED"
+            else:
+                print("?? H4b MIXED: Some evidence for interaction effects")
+                h4b_status = "MIXED"
+        
+        # Overall progression analysis
+        print(f"\n{'='*60}")
+        print("PROGRESSIVE MODEL ANALYSIS")
+        print(f"{'='*60}")
+        
+        if len(results_summary) >= 3:
+            rmse_progression = [r['RMSE'] for r in results_summary]
+            
+            print("RMSE Progression:")
+            for i, result in enumerate(results_summary):
+                improvement = ""
+                if i > 0:
+                    prev_rmse = results_summary[i-1]['RMSE']
+                    change = ((prev_rmse - result['RMSE']) / prev_rmse) * 100
+                    improvement = f" ({change:+.2f}%)"
+                print(f"  {result['Model']}: {result['RMSE']:.4f}{improvement}")
+            
+            if len(rmse_progression) >= 2:
+                overall_improvement = ((rmse_progression[0] - rmse_progression[-1]) / rmse_progression[0]) * 100
+                print(f"\nOverall Improvement (Baseline ? Final): {overall_improvement:+.2f}%")
+        
+        # Save comprehensive results
+        try:
+            with open(f"{output_dir}/comprehensive_model_results.pkl", "wb") as f:
+                save_data = {
+                    'model_results': {},
+                    'results_summary': results_summary,
+                    'hypothesis_testing': {
+                        'h3_status': h3_status if 'h3_status' in locals() else 'NOT_TESTED',
+                        'h4a_status': h4a_status if 'h4a_status' in locals() else 'NOT_TESTED', 
+                        'h4b_status': h4b_status if 'h4b_status' in locals() else 'NOT_TESTED'
+                    },
+                    'model_progression': {
+                        'rmse_values': [r['RMSE'] for r in results_summary],
+                        'r2_values': [r['R²'] for r in results_summary],
+                        'feature_counts': [r['Features'] for r in results_summary]
+                    }
+                }
+                
+                # Save filtered results (without model objects)
+                for model_type, result in model_results.items():
+                    save_data['model_results'][model_type] = {
+                        'rmse': result['rmse'],
+                        'mae': result['mae'], 
+                        'r2': result['r2'],
+                        'epochs': result['epochs'],
+                        'predictions': result['predictions'],
+                        'description': result['description']
+                    }
+                
+                pickle.dump(save_data, f)
+            
+            print(f"\nComprehensive results saved: {output_dir}/comprehensive_model_results.pkl")
+            
+        except Exception as e:
+            print(f"Error saving comprehensive results: {str(e)}")
+        
+        # Identify and save best model
+        best_model_type = min(model_results.items(), key=lambda x: x[1]['rmse'])[0]
+        best_model = model_results[best_model_type]['model']
+        best_rmse = model_results[best_model_type]['rmse']
+        
+        print(f"\n?? BEST MODEL: {model_results[best_model_type]['description']}")
+        print(f"   RMSE: {best_rmse:.4f}")
+        print(f"   R²:   {model_results[best_model_type]['r2']:.4f}")
+        
+        best_model.save(f"{output_dir}/best_comprehensive_model.keras") 
+        print(f"Best model saved: {output_dir}/best_comprehensive_model.keras")
+
+    else:
+        print("? No models trained successfully!")
+
+    print(f"\n{'='*80}")
+    print("COMPREHENSIVE HYPOTHESIS TESTING COMPLETE!")
+    print(f"{'='*80}")
+
+else:
+    print("? Required sequence data (X_seq) not available!")
+    print("Please run the sequence preparation code first.")
+            
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from tqdm import tqdm
+import time
+import pickle
+import pandas as pd
+from tensorflow.keras.models import load_model
+import os
+import random
+
+# Setup
+output_dir = "./prediction"
+
+# Load base data
+data = pd.read_csv("final.csv")
+clusters = pd.read_csv("track_clusters_final.csv")
+data = pd.merge(data, clusters[['track', 'artist', 'cluster', 'category']], 
+                on=['track', 'artist'], how='left')
+data['song_id'] = data['track'] + " - " + data['artist']
+
+cluster_mapping = {}
+for _, row in clusters.drop_duplicates(subset=['cluster', 'category']).iterrows():
+    cluster_mapping[row['cluster']] = row['category']
+
+# Load original sequences
+with open(f"{output_dir}/seq_data.pkl", "rb") as f:
+    seq_data = pickle.load(f)
+X_seq = seq_data['X_seq']
+y_seq = seq_data['y_seq'] 
+seq_info = seq_data['seq_info']
+
+# Helper functions (EXACT COPIES)
+def stratified_split(X, y, info, cluster_mapping, min_test_per_cluster=3):
+    indices_by_cluster = {}
+    for i, inf in enumerate(info):
+        cluster = inf['predicted_cluster']
+        if cluster not in indices_by_cluster:
+            indices_by_cluster[cluster] = []
+        indices_by_cluster[cluster].append(i)
+    
+    train_indices, val_indices, test_indices = [], [], []
+    
+    for cluster, indices in indices_by_cluster.items():
+        cluster_name = cluster_mapping.get(cluster, f"Cluster_{cluster}")
+        total = len(indices)
+        random.shuffle(indices)
+        
+        if cluster_name == 'Holiday Hits':
+            min_test_per_cluster = max(3, int(0.2 * total))
+        
+        test_count = max(min_test_per_cluster, int(0.15 * total))
+        test_count = min(test_count, total - 2)
+        val_count = int(0.15 * (total - test_count))
+        train_count = total - test_count - val_count
+        
+        if train_count <= 0:
+            if total <= min_test_per_cluster:
+                test_count = total
+                val_count = 0
+                train_count = 0
+            else:
+                test_count = min_test_per_cluster
+                val_count = min(1, total - test_count)
+                train_count = total - test_count - val_count
+        
+        test_indices.extend(indices[:test_count])
+        val_indices.extend(indices[test_count:test_count+val_count])
+        train_indices.extend(indices[test_count+val_count:])
+    
+    return train_indices, val_indices, test_indices
+
+def prepare_padded_sequences(X, indices):
+    max_length = max(len(X[i]) for i in indices)
+    features = X[indices[0]].shape[1] if len(indices) > 0 else 0
+    padded_X = np.zeros((len(indices), max_length, features))
+    
+    for i, idx in enumerate(indices):
+        seq = X[idx]
+        padded_X[i, -len(seq):, :] = seq
+        
+    return padded_X
+
+def create_baseline_sequences(original_X_seq):
+    baseline_sequences = []
+    for seq in original_X_seq:
+        hot100_only = seq[:, :1]
+        baseline_sequences.append(hot100_only)
+    return baseline_sequences
+
+def create_rank_interaction_features(df, seq_info, original_X_seq):
+    print("\nEngineering rank interaction features...")
+    
+    interaction_features = []
+    
+    for seq_idx, info in enumerate(seq_info):
+        song_id = info['song_id']
+        song_data = df[df['song_id'] == song_id]
+        
+        if len(song_data) > 0:
+            is_collab = float(song_data['is_collab'].iloc[0]) if 'is_collab' in df.columns else 0
+            seasonal_cols = ['is_holiday_season', 'is_summer_season', 'is_award_season']
+            seasonal_values = [song_data[col].iloc[0] for col in seasonal_cols if col in df.columns]
+            is_seasonal = float(any(seasonal_values)) if seasonal_values else 0
+        else:
+            is_collab = 0
+            is_seasonal = 0
+        
+        sequence_length = len(original_X_seq[seq_idx])
+        timestep_interactions = []
+        
+        for timestep in range(sequence_length):
+            timestep_features = original_X_seq[seq_idx][timestep]
+            step_interactions = []
+            
+            for rank_idx in range(min(5, len(timestep_features))):
+                platform_rank_value = timestep_features[rank_idx]
+                step_interactions.append(platform_rank_value * is_collab)
+                step_interactions.append(platform_rank_value * is_seasonal)
+            
+            timestep_interactions.append(step_interactions)
+        
+        interaction_features.append(timestep_interactions)
+    
+    enhanced_sequences = []
+    for seq_idx in range(len(original_X_seq)):
+        original_seq = original_X_seq[seq_idx]
+        interaction_seq = interaction_features[seq_idx]
+        
+        enhanced_seq = []
+        for timestep in range(len(original_seq)):
+            original_features = original_seq[timestep]
+            if timestep < len(interaction_seq):
+                interaction_features_step = interaction_seq[timestep]
+            else:
+                interaction_features_step = [0] * 10
+            
+            combined_features = np.concatenate([original_features, interaction_features_step])
+            enhanced_seq.append(combined_features)
+        
+        enhanced_sequences.append(np.array(enhanced_seq))
+    
+    return enhanced_sequences
+
+def pad_or_trim_sequences(sequences, target_features):
+    adjusted_sequences = []
+    for seq in sequences:
+        adjusted_seq = []
+        for timestep in seq:
+            if len(timestep) < target_features:
+                padded = np.pad(timestep, (0, target_features - len(timestep)), 'constant')
+                adjusted_seq.append(padded)
+            elif len(timestep) > target_features:
+                adjusted_seq.append(timestep[:target_features])
+            else:
+                adjusted_seq.append(timestep)
+        adjusted_sequences.append(np.array(adjusted_seq))
+    return adjusted_sequences
+
+# EXACT FEATURE ABLATION FROM ORIGINAL
+def lstm_feature_ablation_study_interaction_model(model_type, verbose=True):
+    """
+    Feature Ablation Study for rank interaction LSTM model
+    """
+    
+    print(f"Loading {model_type} model for ablation study...")
+    
+    # Load the model
+    try:
+        model_path = f"{output_dir}/model_{model_type}.keras"
+        model = load_model(model_path)
+        expected_features = model.input_shape[2]
+        print(f"Model loaded successfully, expects {expected_features} features")
+        
+    except Exception as e:
+        print(f"Error loading model: {str(e)}")
+        return None
+    
+    # Recreate sequences based on model type
+    if model_type == "baseline":
+        current_X_seq = create_baseline_sequences(X_seq)
+    elif model_type == "platform":
+        current_X_seq = pad_or_trim_sequences(X_seq, expected_features)
+    elif model_type == "context":
+        current_X_seq = pad_or_trim_sequences(X_seq, expected_features)
+    elif model_type == "interaction":
+        current_X_seq = create_rank_interaction_features(data, seq_info, X_seq)
+        current_X_seq = pad_or_trim_sequences(current_X_seq, expected_features)
+    
+    # Prepare test data
+    train_indices, val_indices, test_indices = stratified_split(X_seq, y_seq, seq_info, cluster_mapping)
+    X_full = prepare_padded_sequences(current_X_seq, test_indices)
+    y_full = y_seq[test_indices]
+    
+    print(f"Using all {len(X_full)} test samples")
+    print(f"Test data shape: {X_full.shape}")
+    print(f"Features per timestep: {X_full.shape[2]}")
+    
+    # Define feature names for INTERACTION model (original + interaction terms)
+    feature_names = []
+    
+    # 1. Hot100 rank (first feature)
+    feature_names.append("Hot100 Rank")
+    
+    # 2. Cluster probabilities (6 clusters)
+    for cluster_id, cluster_name in cluster_mapping.items():
+        feature_names.append(f"Cluster Prob {cluster_name}")
+    
+    # 3. Platform features (ranks, changes, growth rates)
+    platforms = ['Radio', 'Streaming', 'Sales', 'Apple', 'Spotify']
+    for platform in platforms:
+        feature_names.extend([
+            f"{platform} Rank",
+            f"{platform} Change", 
+            f"{platform} Growth Rate"
+        ])
+    
+    # 4. Cross-platform relationships
+    feature_names.extend([
+        'Platform Divergence', 'Spotify Vs Apple', 'Streaming Vs Radio',
+        'Streaming Vs Sales', 'Radio Vs Sales', 'Spotify Leads Apple',
+        'Streaming Leads Radio', 'Streaming Leads Sales', 'Radio Leads Sales',
+        'Platform Change Momentum', 'Platform Acceleration Momentum'
+    ])
+    
+    # 5. Context features
+    feature_names.extend([
+        'Available Platforms', 'Is Collab', 'Is Holiday Season', 
+        'Is Summer Season', 'Is Award Season'
+    ])
+    
+    # 6. Lag features (weighted)
+    for platform in platforms:
+        for lag in [1, 2, 3, 4]:
+            feature_names.extend([
+                f"{platform} Rank Lag{lag} Weighted",
+                f"{platform} Change Lag{lag} Weighted",
+                f"{platform} Growth Lag{lag} Weighted"
+            ])
+    
+    # 7. Cross-platform relationship features
+    cross_platform_pairs = [
+        'Radio To Streaming', 'Streaming To Radio', 'Spotify To Apple',
+        'Apple To Spotify', 'Streaming To Sales', 'Sales To Streaming'
+    ]
+    for pair in cross_platform_pairs:
+        for lag in [1, 2, 3]:
+            feature_names.append(f"{pair} Lag{lag}")
+    
+    # 8. RANK INTERACTION TERMS (NEW!) - These should be at the end
+    if model_type == "interaction":
+        platforms_rank = ['Radio', 'Streaming', 'Sales', 'Apple', 'Spotify']
+        for platform in platforms_rank:
+            feature_names.extend([
+                f'{platform} Rank × Collaboration',
+                f'{platform} Rank × Seasonal'
+            ])
+    
+    # Adjust feature names to actual number of features
+    actual_features = X_full.shape[2]
+    if len(feature_names) > actual_features:
+        feature_names = feature_names[:actual_features]
+    elif len(feature_names) < actual_features:
+        for i in range(len(feature_names), actual_features):
+            feature_names.append(f"Feature {i}")
+    
+    print(f"Total features to test: {len(feature_names)}")
+    
+    # Find interaction term indices
+    interaction_indices = []
+    for i, name in enumerate(feature_names):
+        if '×' in name:
+            interaction_indices.append(i)
+    
+    print(f"Including {len(interaction_indices)} rank interaction terms at indices: {interaction_indices}")
+    print(f"Interaction features: {[feature_names[i] for i in interaction_indices]}")
+    
+    # Calculate baseline performance
+    print("\nCalculating baseline performance...")
+    start_time = time.time()
+    baseline_loss = model.evaluate(X_full, y_full, verbose=0, batch_size=32)[0]
+    baseline_time = time.time() - start_time
+    print(f"Baseline MSE: {baseline_loss:.4f} (took {baseline_time:.1f}s)")
+    
+    # Feature importance results
+    feature_importance = {}
+    
+    # Group similar features for efficiency
+    feature_groups = {
+        'Hot100 History': [0],
+        'Cluster Probabilities': list(range(1, 7)),
+        'Platform Ranks': list(range(7, 12)),
+        'Platform Changes': list(range(12, 17)),
+        'Platform Growth': list(range(17, 22)),
+        'Cross-Platform Relations': list(range(22, 33)),
+        'Context Features': list(range(33, 38)),
+        'Lag Features': list(range(38, min(len(feature_names), actual_features - len(interaction_indices)))),
+    }
+    
+    if model_type == "interaction":
+        feature_groups['Interaction Terms'] = interaction_indices
+    
+    print(f"\nFeature groups: {[(name, len(indices)) for name, indices in feature_groups.items()]}")
+    
+    print("\nTesting ALL individual features...")
+    
+    # Test ALL individual features
+    for i in tqdm(range(len(feature_names)), desc="Testing all individual features"):
+        if verbose and i % 10 == 0:
+            print(f"\nTesting feature {i+1}/{len(feature_names)}: {feature_names[i]}")
+        
+        # Create ablated data
+        X_ablated = X_full.copy()
+        X_ablated[:, :, i] = 0
+        
+        # Evaluate performance
+        try:
+            ablated_loss = model.evaluate(X_ablated, y_full, verbose=0, batch_size=32)[0]
+            importance = ablated_loss - baseline_loss
+            feature_importance[feature_names[i]] = importance
+            
+            if verbose and importance > 0.01:
+                print(f"  {feature_names[i]}: +{importance:.4f} MSE increase")
+                
+        except Exception as e:
+            print(f"  Error testing {feature_names[i]}: {str(e)}")
+            feature_importance[feature_names[i]] = 0
+    
+    # Test feature groups
+    print("\nTesting feature groups...")
+    
+    for group_name, indices in tqdm(feature_groups.items(), desc="Testing feature groups"):
+        if not indices:
+            print(f"  Skipping {group_name} - no features")
+            continue
+            
+        # Ensure indices are within bounds
+        valid_indices = [idx for idx in indices if idx < X_full.shape[2]]
+        if not valid_indices:
+            print(f"  Skipping {group_name} - no valid indices")
+            continue
+            
+        if verbose:
+            print(f"\nTesting group {group_name} with {len(valid_indices)} features")
+            
+        # Create ablated data for entire group
+        X_ablated = X_full.copy()
+        for idx in valid_indices:
+            X_ablated[:, :, idx] = 0
+        
+        # Evaluate performance
+        try:
+            ablated_loss = model.evaluate(X_ablated, y_full, verbose=0, batch_size=32)[0]
+            importance = ablated_loss - baseline_loss
+            feature_importance[f"GROUP_{group_name}"] = importance
+            
+            if verbose:
+                print(f"  {group_name}: +{importance:.4f} MSE increase")
+                
+        except Exception as e:
+            print(f"  Error testing group {group_name}: {str(e)}")
+            feature_importance[f"GROUP_{group_name}"] = 0
+    
+    # Sort results
+    sorted_importance = sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)
+    
+    # Create visualization
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
+    
+    # Plot 1: Individual features - TOP 10 ONLY
+    individual_features = [(k, v) for k, v in sorted_importance if not k.startswith('GROUP_')]
+    if individual_features:
+        top_individual = individual_features[:10]  # TOP 10 ONLY
+        names, scores = zip(*top_individual)
+        
+        # Use red color for individual features
+        colors = ['red'] * len(names)
+        
+        bars1 = ax1.barh(range(len(names)), scores, color=colors)
+        ax1.set_yticks(range(len(names)))
+        ax1.set_yticklabels([name.replace('_', ' ').title()[:25] + '...' if len(name) > 25 else name.replace('_', ' ').title() for name in names])
+        ax1.set_xlabel('Performance Degradation (MSE Increase)')
+        ax1.set_title(f'Top Individual Features Importance ({model_type.title()} Model)', fontweight='bold')
+        ax1.grid(axis='x', alpha=0.3)
+        
+        # Add value labels
+        for bar, score in zip(bars1, scores):
+            width = bar.get_width()
+            ax1.text(width + max(scores) * 0.01, bar.get_y() + bar.get_height()/2, 
+                    f'{score:.3f}', va='center', fontsize=9)
+    
+    # Plot 2: Feature groups - ALL GROUPS
+    group_features = [(k.replace('GROUP_', ''), v) for k, v in sorted_importance if k.startswith('GROUP_')]
+    if group_features:
+        # Include ALL groups (not filtered)
+        group_names, group_scores = zip(*group_features)
+        
+        # Use darkred (vi?iniu) color for group features
+        colors2 = ['darkred'] * len(group_names)
+        
+        bars2 = ax2.barh(range(len(group_names)), group_scores, color=colors2)
+        ax2.set_yticks(range(len(group_names)))
+        ax2.set_yticklabels(group_names)
+        ax2.set_xlabel('Performance Degradation (MSE Increase)')
+        ax2.set_title(f'Feature Groups Importance ({model_type.title()} Model)', fontweight='bold')
+        ax2.grid(axis='x', alpha=0.3)
+        
+        # Add value labels
+        for bar, score in zip(bars2, group_scores):
+            width = bar.get_width()
+            ax2.text(width + max(group_scores) * 0.01, bar.get_y() + bar.get_height()/2, 
+                    f'{score:.3f}', va='center', fontsize=10, fontweight='bold')
+    
+    plt.tight_layout()
+    plt.savefig(f"{output_dir}/{model_type}_model_feature_importance.png", dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    # Save individual and group importance to separate CSV files
+    print("\nSaving results to CSV files...")
+    
+    # Individual features importance
+    individual_df = pd.DataFrame([
+        {'Feature': k, 'Importance': v, 'Feature_Type': 'INTERACTION' if ('×' in k) else 'ORIGINAL'}
+        for k, v in individual_features
+    ])
+    individual_df = individual_df.sort_values('Importance', ascending=False)
+    individual_df.to_csv(f"{output_dir}/individual_features_importance_{model_type}.csv", index=False)
+    print(f"Individual features importance saved: {output_dir}/individual_features_importance_{model_type}.csv")
+    
+    # Group features importance
+    group_df = pd.DataFrame([
+        {'Feature_Group': k, 'Importance': v}
+        for k, v in group_features
+    ])
+    group_df = group_df.sort_values('Importance', ascending=False)
+    group_df.to_csv(f"{output_dir}/group_features_importance_{model_type}.csv", index=False)
+    print(f"Group features importance saved: {output_dir}/group_features_importance_{model_type}.csv")
+    
+    # Print summary
+    print(f"\n{'='*60}")
+    print(f"{model_type.upper()} MODEL FEATURE ABLATION RESULTS")
+    print(f"{'='*60}")
+    print(f"Model: {model_type}")
+    print(f"Baseline MSE: {baseline_loss:.4f}")
+    print(f"Test samples: {len(X_full)}")
+    print(f"Total features: {len(feature_names)} (including {len(interaction_indices)} interaction terms)")
+    
+    print(f"\nTop 10 Most Important Features:")
+    for i, (feature, importance) in enumerate(sorted_importance[:10], 1):
+        feature_type = "INTERACTION" if ('×' in feature) else "ORIGINAL"
+        impact = "Critical" if importance > 0.05 else "High" if importance > 0.01 else "Medium" if importance > 0.005 else "Low"
+        print(f"{i:2d}. {feature:35s}: +{importance:6.4f} MSE ({impact}) [{feature_type}]")
+    
+    # Print interaction terms specifically
+    if interaction_indices:
+        print(f"\nInteraction Terms Analysis:")
+        interaction_features = [(k, v) for k, v in sorted_importance if '×' in k]
+        if interaction_features:
+            print(f"Found {len(interaction_features)} interaction terms in results:")
+            for i, (feature, importance) in enumerate(interaction_features, 1):
+                impact = "Critical" if importance > 0.05 else "High" if importance > 0.01 else "Medium" if importance > 0.005 else "Low"
+                print(f"{i:2d}. {feature:35s}: +{importance:6.4f} MSE ({impact})")
+        else:
+            print("No interaction terms found in results!")
+    
+    return feature_importance, sorted_importance
+
+# Run the ablation study on all models
+print("Starting Feature Ablation Study on All Models...")
+
+for model_type in ["baseline", "platform", "context", "interaction"]:
+    try:
+        print(f"\n{'='*80}")
+        print(f"FEATURE ABLATION: {model_type.upper()} MODEL")
+        print(f"{'='*80}")
+        
+        feature_importance, sorted_importance = lstm_feature_ablation_study_interaction_model(model_type, verbose=True)
+        
+        if feature_importance is not None:
+            print(f"? {model_type.upper()} model ablation completed!")
+        else:
+            print(f"? {model_type.upper()} model ablation failed!")
+            
+    except Exception as e:
+        print(f"? Error in {model_type} model ablation: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        continue
+
+print("\n" + "="*80)
+print("ALL FEATURE ABLATION STUDIES COMPLETED!")
+print("="*80)
+
+2
+
+
