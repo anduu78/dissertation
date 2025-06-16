@@ -1,0 +1,1301 @@
+date,rank,track,artist,sales_last_week,sales_peak,sales_woc
+1/6/2024,1,Closer Than This,Jimin,-,1,1
+1/6/2024,2,Lovin On Me,Jack Harlow,3,1,7
+1/6/2024,3,All I Want For Christmas Is You,Mariah Carey,4,1,108
+1/6/2024,4,Lose Control,Teddy Swims,2,2,24
+1/6/2024,5,Standing Next To You,Jung Kook,1,1,8
+1/6/2024,6,Rockin' Around The Christmas Tree,Brenda Lee,8,4,51
+1/6/2024,7,Last Christmas,Wham!,5,5,29
+1/6/2024,8,Lil Boo Thang,Paul Russell,12,2,19
+1/6/2024,9,I Remember Everything,Zach Bryan Featuring Kacey Musgraves,14,4,18
+1/6/2024,10,DJ Play A Christmas Song,Cher,7,5,6
+1/6/2024,11,Save Me,Jelly Roll With Lainey Wilson,15,6,33
+1/6/2024,12,White Horse,Chris Stapleton,17,5,22
+1/6/2024,13,Cruel Summer,Taylor Swift,-,1,26
+1/6/2024,14,Christmas Eve (Sarajevo 12/24),Trans-Siberian Orchestra,13,12,43
+1/6/2024,15,Snowman,Sia,19,15,6
+1/6/2024,16,Underneath The Tree,Kelly Clarkson,16,16,21
+1/6/2024,17,To Be A Man,Dax & Darius Rucker,24,3,5
+1/6/2024,18,The Christmas Song (Merry Christmas To You),"Nat ""King"" Cole",18,18,22
+1/6/2024,19,Merry Christmas,Ed Sheeran & Elton John,-,4,8
+1/6/2024,20,Fancy Like Christmas,Walker Hayes,20,20,3
+1/6/2024,21,Wrap Me Up,Jimmy Fallon + Meghan Trainor,10,5,6
+1/6/2024,22,Need A Favor,Jelly Roll,23,2,42
+1/6/2024,23,What Was I Made For?,Billie Eilish,11,8,15
+1/6/2024,24,Paint The Town Red,Doja Cat,-,1,19
+1/6/2024,25,Water,Tyla,21,14,9
+1/13/2024,1,Lovin On Me,Jack Harlow,2,1,8
+1/13/2024,2,Lose Control,Teddy Swims,4,2,25
+1/13/2024,3,Standing Next To You,Jung Kook,5,1,9
+1/13/2024,4,Lil Boo Thang,Paul Russell,8,2,20
+1/13/2024,5,Wherever U R,UMI & V,-,5,1
+1/13/2024,6,I Remember Everything,Zach Bryan Featuring Kacey Musgraves,9,4,19
+1/13/2024,7,White Horse,Chris Stapleton,12,5,23
+1/13/2024,8,Save Me,Jelly Roll With Lainey Wilson,11,6,34
+1/13/2024,9,Need A Favor,Jelly Roll,22,2,43
+1/13/2024,10,Water,Tyla,25,10,10
+1/13/2024,11,Truck Bed,HARDY,-,11,11
+1/13/2024,12,Thinkin' Bout Me,Morgan Wallen,-,4,39
+1/13/2024,13,Last Night,Morgan Wallen,-,1,40
+1/13/2024,14,What Was I Made For?,Billie Eilish,23,8,16
+1/13/2024,15,Cruel Summer,Taylor Swift,13,1,27
+1/13/2024,16,Paint The Town Red,Doja Cat,24,1,20
+1/13/2024,17,Murder On The Dancefloor,Sophie Ellis-Bextor,-,17,1
+1/13/2024,18,Where The Wild Things Are,Luke Combs,-,18,2
+1/13/2024,19,FTCU,Nicki Minaj,-,10,2
+1/13/2024,20,Houdini,Dua Lipa,-,3,5
+1/13/2024,21,Dance The Night,Dua Lipa,-,5,23
+1/13/2024,22,'Til You Can't,Cody Johnson,-,1,46
+1/13/2024,23,Flowers,Miley Cyrus,-,1,41
+1/13/2024,24,Fast Car,Luke Combs,-,1,35
+1/13/2024,25,Used To Be Young,Miley Cyrus,-,2,11
+1/20/2024,1,FTCU,Nicki Minaj,19,1,3
+1/20/2024,2,Lovin On Me,Jack Harlow,1,1,9
+1/20/2024,3,Lose Control,Teddy Swims,2,2,26
+1/20/2024,4,What Was I Made For?,Billie Eilish,14,4,17
+1/20/2024,5,Lil Boo Thang,Paul Russell,4,2,21
+1/20/2024,6,I Remember Everything,Zach Bryan Featuring Kacey Musgraves,6,4,20
+1/20/2024,7,Murder On The Dancefloor,Sophie Ellis-Bextor,17,7,2
+1/20/2024,8,Standing Next To You,Jung Kook,3,1,10
+1/20/2024,9,Save Me,Jelly Roll With Lainey Wilson,8,6,35
+1/20/2024,10,Live Like You Were Dying,Tim McGraw,-,10,13
+1/20/2024,11,White Horse,Chris Stapleton,7,5,24
+1/20/2024,12,Need A Favor,Jelly Roll,9,2,44
+1/20/2024,13,Where The Wild Things Are,Luke Combs,18,13,3
+1/20/2024,14,Houdini,Dua Lipa,20,3,6
+1/20/2024,15,Don't Give Up On Us,David Soul,-,15,1
+1/20/2024,16,Thinkin' Bout Me,Morgan Wallen,12,4,40
+1/20/2024,17,Change,Kodi Lee,-,17,1
+1/20/2024,18,Paint The Town Red,Doja Cat,16,1,21
+1/20/2024,19,Dance The Night,Dua Lipa,21,5,24
+1/20/2024,20,Water,Tyla,10,10,11
+1/20/2024,21,Cruel Summer,Taylor Swift,15,1,28
+1/20/2024,22,Don't Stop Praying,Matthew West,-,22,1
+1/20/2024,23,Used To Be Young,Miley Cyrus,25,2,12
+1/20/2024,24,To Be A Man,Dax & Darius Rucker,-,3,6
+1/20/2024,25,Hard To Love,Lee Brice,-,25,25
+1/27/2024,1,"Yes, And?",Ariana Grande,-,1,1
+1/27/2024,2,Lovin On Me,Jack Harlow,2,1,10
+1/27/2024,3,Lose Control,Teddy Swims,3,2,27
+1/27/2024,4,Standing Next To You,Jung Kook,8,1,11
+1/27/2024,5,I Remember Everything,Zach Bryan Featuring Kacey Musgraves,6,4,21
+1/27/2024,6,Lil Boo Thang,Paul Russell,5,2,22
+1/27/2024,7,Murder On The Dancefloor,Sophie Ellis-Bextor,7,7,3
+1/27/2024,8,Scared To Start,Michael Marcagi,-,8,1
+1/27/2024,9,Press Play,Nicki Minaj Featuring Future,-,9,1
+1/27/2024,10,Need A Favor,Jelly Roll,12,2,45
+1/27/2024,11,Save Me,Jelly Roll With Lainey Wilson,9,6,36
+1/27/2024,12,White Horse,Chris Stapleton,11,5,25
+1/27/2024,13,What Was I Made For?,Billie Eilish,4,4,18
+1/27/2024,14,Houdini,Dua Lipa,14,3,7
+1/27/2024,15,Where The Wild Things Are,Luke Combs,13,13,4
+1/27/2024,16,Live Like You Were Dying,Tim McGraw,10,10,14
+1/27/2024,17,Super Bon Bon,Soul Coughing,-,17,1
+1/27/2024,18,Cruel Summer,Taylor Swift,21,1,29
+1/27/2024,19,FTCU,Nicki Minaj,1,1,4
+1/27/2024,20,Thinkin' Bout Me,Morgan Wallen,16,4,41
+1/27/2024,21,J Christ,Lil Nas X,-,21,1
+1/27/2024,22,Water,Tyla,20,10,12
+1/27/2024,23,Dance The Night,Dua Lipa,19,5,25
+1/27/2024,24,Stick Season,Noah Kahan,-,24,1
+1/27/2024,25,Paint The Town Red,Doja Cat,18,1,22
+2/3/2024,1,Lose Control,Teddy Swims,3,1,28
+2/3/2024,2,Beautiful Things,Benson Boone,-,2,1
+2/3/2024,3,Lovin On Me,Jack Harlow,2,1,11
+2/3/2024,4,Standing Next To You,Jung Kook,4,1,12
+2/3/2024,5,Selfish,Justin Timberlake,-,5,1
+2/3/2024,6,Soak City,310babii,-,6,1
+2/3/2024,7,I Remember Everything,Zach Bryan Featuring Kacey Musgraves,5,4,22
+2/3/2024,8,Made For Me,Muni Long,-,8,1
+2/3/2024,9,Murder On The Dancefloor,Sophie Ellis-Bextor,7,7,4
+2/3/2024,10,Lil Boo Thang,Paul Russell,6,2,23
+2/3/2024,11,Dance You Outta My Head,Cat Janice,-,11,1
+2/3/2024,12,Whatever,Kygo With Ava Max,-,12,1
+2/3/2024,13,White Horse,Chris Stapleton,12,5,26
+2/3/2024,14,"Yes, And?",Ariana Grande,1,1,2
+2/3/2024,15,Where The Wild Things Are,Luke Combs,15,13,5
+2/3/2024,16,Danger,BTS,-,16,1
+2/3/2024,17,Save Me,Jelly Roll With Lainey Wilson,11,6,37
+2/3/2024,18,What Was I Made For?,Billie Eilish,13,4,19
+2/3/2024,19,Houdini,Dua Lipa,14,3,8
+2/3/2024,20,Skin And Bones,David Kushner,-,20,1
+2/3/2024,21,Live Like You Were Dying,Tim McGraw,16,10,15
+2/3/2024,22,Need A Favor,Jelly Roll,10,2,46
+2/3/2024,23,No Caller ID,Megan Moroney,-,23,1
+2/3/2024,24,Cruel Summer,Taylor Swift,18,1,30
+2/3/2024,25,Surround Sound,JID Featuring 21 Savage & Baby Tate,-,25,1
+2/10/2024,1,Hiss,Megan Thee Stallion,-,1,1
+2/10/2024,2,Facts,Tom MacDonald X Ben Shapiro,-,2,1
+2/10/2024,3,Big Foot,Nicki Minaj,-,3,1
+2/10/2024,4,Selfish,Justin Timberlake,5,4,2
+2/10/2024,5,Selfish,Britney Spears,-,5,1
+2/10/2024,6,Lovin On Me,Jack Harlow,3,1,12
+2/10/2024,7,Beautiful Things,Benson Boone,2,2,2
+2/10/2024,8,Dance You Outta My Head,Cat Janice,11,8,2
+2/10/2024,9,Everybody,Nicki Minaj Featuring Lil Uzi Vert,-,7,2
+2/10/2024,10,Spin You Around (1/24),Morgan Wallen,-,10,1
+2/10/2024,11,Turn The Lights Back On,Billy Joel,-,11,1
+2/10/2024,12,Lose Control,Teddy Swims,1,1,29
+2/10/2024,13,Standing Next To You,Jung Kook,4,1,13
+2/10/2024,14,Made For Me,Muni Long,8,8,2
+2/10/2024,15,I Remember Everything,Zach Bryan Featuring Kacey Musgraves,7,4,23
+2/10/2024,16,Lil Boo Thang,Paul Russell,10,2,24
+2/10/2024,17,Murder On The Dancefloor,Sophie Ellis-Bextor,9,7,5
+2/10/2024,18,White Horse,Chris Stapleton,13,5,27
+2/10/2024,19,Where The Wild Things Are,Luke Combs,15,13,6
+2/10/2024,20,Think U The Shit (Fart),Ice Spice,-,20,1
+2/10/2024,21,We Are The World,USA For Africa,-,21,3
+2/10/2024,22,Save Me,Jelly Roll With Lainey Wilson,17,6,38
+2/10/2024,23,Houdini,Dua Lipa,19,3,9
+2/10/2024,24,Cruel Summer,Taylor Swift,24,1,31
+2/10/2024,25,Stick Season,Noah Kahan,-,24,2
+2/17/2024,1,Fast Car,Tracy Chapman,-,1,9
+2/17/2024,2,Don't Let The Old Man In,Toby Keith,-,2,4
+2/17/2024,3,Flowers,Miley Cyrus,-,1,42
+2/17/2024,4,Fast Car,Luke Combs,-,1,36
+2/17/2024,5,Turn The Lights Back On,Billy Joel,11,5,2
+2/17/2024,6,Facts,Tom MacDonald X Ben Shapiro,2,2,2
+2/17/2024,7,Should've Been A Cowboy,Toby Keith,-,7,1
+2/17/2024,8,"Courtesy Of The Red, White And Blue (The Angry American)",Toby Keith,-,8,6
+2/17/2024,9,Beautiful Things,Benson Boone,7,2,3
+2/17/2024,10,Both Sides Now,Joni Mitchell,-,10,2
+2/17/2024,11,What Was I Made For?,Billie Eilish,-,4,20
+2/17/2024,12,How Do You Like Me Now?!,Toby Keith,-,12,1
+2/17/2024,13,As Good As I Once Was,Toby Keith,-,13,17
+2/17/2024,14,Hiss,Megan Thee Stallion,1,1,2
+2/17/2024,15,Give Me One Reason,Tracy Chapman,-,15,1
+2/17/2024,16,Standing Next To You,Jung Kook,13,1,14
+2/17/2024,17,Lose Control,Teddy Swims,12,1,30
+2/17/2024,18,Beer For My Horses,Toby Keith Duet With Willie Nelson,-,18,1
+2/17/2024,19,I Love This Bar,Toby Keith,-,19,1
+2/17/2024,20,Lovin On Me,Jack Harlow,6,1,13
+2/17/2024,21,Selfish,Justin Timberlake,4,4,3
+2/17/2024,22,Dance You Outta My Head,Cat Janice,8,8,3
+2/17/2024,23,American Soldier,Toby Keith,-,23,2
+2/17/2024,24,I Got You,TWICE,-,24,1
+2/17/2024,25,Red Solo Cup,Toby Keith,-,8,27
+2/24/2024,1,Texas Hold 'Em,Beyonce,-,1,1
+2/24/2024,2,16 Carriages,Beyonce,-,2,1
+2/24/2024,3,Don't Let The Old Man In,Toby Keith,2,2,5
+2/24/2024,4,Yeah!,Usher Featuring Lil Jon & Ludacris,-,4,75
+2/24/2024,5,Fast Car,Tracy Chapman,1,1,10
+2/24/2024,6,Standing Next To You,Jung Kook,16,1,15
+2/24/2024,7,Flowers,Miley Cyrus,3,1,43
+2/24/2024,8,Beautiful Things,Benson Boone,9,2,4
+2/24/2024,9,Fast Car,Luke Combs,4,1,37
+2/24/2024,10,Ruin,Usher & Pheelz,-,10,1
+2/24/2024,11,Lovin On Me,Jack Harlow,20,1,14
+2/24/2024,12,Should've Been A Cowboy,Toby Keith,7,7,2
+2/24/2024,13,Lose Control,Teddy Swims,17,1,31
+2/24/2024,14,"Courtesy Of The Red, White And Blue (The Angry American)",Toby Keith,8,8,7
+2/24/2024,15,Purple Irises,Gwen Stefani & Blake Shelton,-,15,1
+2/24/2024,16,Yeah Glo!,GloRilla,-,16,1
+2/24/2024,17,U Got It Bad,Usher,-,17,1
+2/24/2024,18,Carnival,¥$: Ye & Ty Dolla $ign Featuring Rich The Kid & Playboi Carti,-,18,1
+2/24/2024,19,My Boo,Usher And Alicia Keys,-,2,22
+2/24/2024,20,How Do You Like Me Now?!,Toby Keith,12,12,2
+2/24/2024,21,As Good As I Once Was,Toby Keith,13,13,18
+2/24/2024,22,Turn The Lights Back On,Billy Joel,5,5,3
+2/24/2024,23,Selfish,Justin Timberlake,21,4,4
+2/24/2024,24,Burn,Usher,-,24,1
+2/24/2024,25,I Remember Everything,Zach Bryan Featuring Kacey Musgraves,-,4,24
+3/2/2024,1,Texas Hold 'Em,Beyonce,1,1,2
+3/2/2024,2,Lose Control,Teddy Swims,13,1,32
+3/2/2024,3,Beautiful Things,Benson Boone,8,2,5
+3/2/2024,4,Standing Next To You,Jung Kook,6,1,16
+3/2/2024,5,"Yes, And?",Ariana Grande,-,1,3
+3/2/2024,6,Lovin On Me,Jack Harlow,11,1,15
+3/2/2024,7,Training Season,Dua Lipa,-,7,1
+3/2/2024,8,Flowers,Miley Cyrus,7,1,44
+3/2/2024,9,Don't Let The Old Man In,Toby Keith,3,2,6
+3/2/2024,10,Turn The Lights Back On,Billy Joel,22,5,4
+3/2/2024,11,Selfish,Justin Timberlake,23,4,5
+3/2/2024,12,I Remember Everything,Zach Bryan Featuring Kacey Musgraves,25,4,25
+3/2/2024,13,Fast Car,Luke Combs,9,1,38
+3/2/2024,14,16 Carriages,Beyonce,2,2,2
+3/2/2024,15,Houdini,Dua Lipa,-,3,10
+3/2/2024,16,Made For Me,Muni Long,-,8,3
+3/2/2024,17,Fast Car,Tracy Chapman,5,1,11
+3/2/2024,18,Save Me,Jelly Roll,-,18,7
+3/2/2024,19,Lil Boo Thang,Paul Russell,-,2,25
+3/2/2024,20,Yeah!,Usher Featuring Lil Jon & Ludacris,4,4,76
+3/2/2024,21,Until I Found You,Stephen Sanchez,-,21,17
+3/2/2024,22,Where The Wild Things Are,Luke Combs,-,13,7
+3/2/2024,23,Country's Cool Again,Lainey Wilson,-,23,1
+3/2/2024,24,Murder On The Dancefloor,Sophie Ellis-Bextor,-,7,6
+3/2/2024,25,Live Like You Were Dying,Tim McGraw,-,10,16
+3/9/2024,1,Beautiful Things,Benson Boone,3,1,6
+3/9/2024,2,Texas Hold 'Em,Beyonce,1,1,3
+3/9/2024,3,Lose Control,Teddy Swims,2,1,33
+3/9/2024,4,The Machine,Tom MacDonald,-,4,1
+3/9/2024,5,Standing Next To You,Jung Kook,4,1,17
+3/9/2024,6,Wine Into Whiskey,Tucker Wetmore,-,6,1
+3/9/2024,7,Lovin On Me,Jack Harlow,6,1,16
+3/9/2024,8,What Was I Made For?,Billie Eilish,-,4,21
+3/9/2024,9,Flowers,Miley Cyrus,8,1,45
+3/9/2024,10,Made For Me,Muni Long,16,8,4
+3/9/2024,11,Drown,Justin Timberlake,-,11,1
+3/9/2024,12,Don't Let The Old Man In,Toby Keith,9,2,7
+3/9/2024,13,Fake Love,BTS,-,1,3
+3/9/2024,14,Houdini,Dua Lipa,15,3,11
+3/9/2024,15,Selfish,Justin Timberlake,11,4,6
+3/9/2024,16,Where The Wild Things Are,Luke Combs,22,13,8
+3/9/2024,17,Fast Car,Luke Combs,13,1,39
+3/9/2024,18,I Remember Everything,Zach Bryan Featuring Kacey Musgraves,12,4,26
+3/9/2024,19,Carnival,¥$: Ye & Ty Dolla $ign Featuring Rich The Kid & Playboi Carti,-,18,2
+3/9/2024,20,Lil Boo Thang,Paul Russell,19,2,26
+3/9/2024,21,Need A Favor,Jelly Roll,-,2,47
+3/9/2024,22,Friendly Fire,Linkin Park,-,22,1
+3/9/2024,23,Save Me,Jelly Roll,18,18,8
+3/9/2024,24,Murder On The Dancefloor,Sophie Ellis-Bextor,24,7,7
+3/9/2024,25,Holy Smokes,Bailey Zimmerman,-,25,1
+3/16/2024,1,Lose Control,Teddy Swims,3,1,34
+3/16/2024,2,Texas Hold 'Em,Beyonce,2,1,4
+3/16/2024,3,Like What (Freestyle),Cardi B,-,3,1
+3/16/2024,4,Beautiful Things,Benson Boone,1,1,7
+3/16/2024,5,Pink Friday Girls,Nicki Minaj,-,5,2
+3/16/2024,6,Standing Next To You,Jung Kook,5,1,18
+3/16/2024,7,Lovin On Me,Jack Harlow,7,1,17
+3/16/2024,8,Let Me Calm Down,Nicki Minaj Featuring J. Cole,-,8,2
+3/16/2024,9,Flowers,Miley Cyrus,9,1,46
+3/16/2024,10,Made For Me,Muni Long,10,8,5
+3/16/2024,11,Doctor (Work It Out),Pharrell & Miley Cyrus,-,11,1
+3/16/2024,12,Where The Wild Things Are,Luke Combs,16,12,9
+3/16/2024,13,Carnival,¥$: Ye & Ty Dolla $ign Featuring Rich The Kid & Playboi Carti,19,13,3
+3/16/2024,14,What Was I Made For?,Billie Eilish,8,4,22
+3/16/2024,15,I Remember Everything,Zach Bryan Featuring Kacey Musgraves,18,4,27
+3/16/2024,16,Fast Car,Luke Combs,17,1,40
+3/16/2024,17,Selfish,Justin Timberlake,15,4,7
+3/16/2024,18,Save Me,Jelly Roll With Lainey Wilson,-,6,39
+3/16/2024,19,Lil Boo Thang,Paul Russell,20,2,27
+3/16/2024,20,Good Days,SZA,-,20,4
+3/16/2024,21,Need A Favor,Jelly Roll,21,2,48
+3/16/2024,22,Thinkin' Bout Me,Morgan Wallen,-,4,42
+3/16/2024,23,Houdini,Dua Lipa,14,3,12
+3/16/2024,24,Wildflowers And Wild Horses,Lainey Wilson,-,22,2
+3/16/2024,25,Save Me,Jelly Roll,23,18,9
+3/23/2024,1,Lose Control,Teddy Swims,1,1,35
+3/23/2024,2,Beautiful Things,Benson Boone,4,1,8
+3/23/2024,3,Texas Hold 'Em,Beyonce,2,1,5
+3/23/2024,4,We Can't Be Friends (Wait For Your Love),Ariana Grande,-,4,1
+3/23/2024,5,What Was I Made For?,Billie Eilish,14,4,23
+3/23/2024,6,Standing Next To You,Jung Kook,6,1,19
+3/23/2024,7,Shadow,Livingston,-,7,1
+3/23/2024,8,Good Day,Forrest Frank,-,8,1
+3/23/2024,9,...Baby One More Time,Tenacious D,-,9,1
+3/23/2024,10,Lovin On Me,Jack Harlow,7,1,18
+3/23/2024,11,Made For Me,Muni Long,10,8,6
+3/23/2024,12,Flowers,Miley Cyrus,9,1,47
+3/23/2024,13,Hungry Eyes,Eric Carmen,-,13,1
+3/23/2024,14,All By Myself,Eric Carmen,-,14,1
+3/23/2024,15,Lil Boo Thang,Paul Russell,19,2,28
+3/23/2024,16,Wildflowers And Wild Horses,Lainey Wilson,24,16,3
+3/23/2024,17,Where The Wild Things Are,Luke Combs,12,12,10
+3/23/2024,18,Save Me,Jelly Roll With Lainey Wilson,18,6,40
+3/23/2024,19,I Remember Everything,Zach Bryan Featuring Kacey Musgraves,15,4,28
+3/23/2024,20,From The Ground Up,Dan + Shay,-,20,13
+3/23/2024,21,Kids,New Kids On The Block,-,21,1
+3/23/2024,22,Selfish,Justin Timberlake,17,4,8
+3/23/2024,23,Save Me,Jelly Roll,25,18,10
+3/23/2024,24,Fast Car,Luke Combs,16,1,41
+3/23/2024,25,Austin,Dasha,-,25,1
+3/30/2024,1,Enough (Miami),Cardi B,-,1,1
+3/30/2024,2,FRI(END)S,V,-,2,1
+3/30/2024,3,Beautiful Things,Benson Boone,2,1,9
+3/30/2024,4,Big Difference,Nicki Minaj,-,4,2
+3/30/2024,5,Texas Hold 'Em,Beyonce,3,1,6
+3/30/2024,6,Lose Control,Teddy Swims,1,1,36
+3/30/2024,7,Paradise,Justin Timberlake Featuring *NSYNC,-,7,1
+3/30/2024,8,Lovin On Me,Jack Harlow,10,1,19
+3/30/2024,9,Standing Next To You,Jung Kook,6,1,20
+3/30/2024,10,What Was I Made For?,Billie Eilish,5,4,24
+3/30/2024,11,Good Day,Forrest Frank,8,8,2
+3/30/2024,12,Made For Me,Muni Long,11,8,7
+3/30/2024,13,Austin,Dasha,25,13,2
+3/30/2024,14,We Can't Be Friends (Wait For Your Love),Ariana Grande,4,4,2
+3/30/2024,15,Best For Me,Joyner Lucas & Jelly Roll,-,15,1
+3/30/2024,16,Save Me,Jelly Roll,23,16,11
+3/30/2024,17,Shadow,Livingston,7,7,2
+3/30/2024,18,Save Me,Jelly Roll With Lainey Wilson,18,6,41
+3/30/2024,19,Flowers,Miley Cyrus,12,1,48
+3/30/2024,20,The America I Know,Trump Latinos X Jimmy Levy,-,20,1
+3/30/2024,21,Cruel Summer,Taylor Swift,-,1,32
+3/30/2024,22,Going Home (Theme From Local Hero),Mark Knopfler's Guitar Heroes,-,22,1
+3/30/2024,23,Wildflowers And Wild Horses,Lainey Wilson,16,16,4
+3/30/2024,24,Where The Wild Things Are,Luke Combs,17,12,11
+3/30/2024,25,I Remember Everything,Zach Bryan Featuring Kacey Musgraves,19,4,29
+4/6/2024,1,Beautiful Things,Benson Boone,3,1,10
+4/6/2024,2,Like That,"Future, Metro Boomin & Kendrick Lamar",-,2,1
+4/6/2024,3,Texas Hold 'Em,Beyonce,5,1,7
+4/6/2024,4,Lose Control,Teddy Swims,6,1,37
+4/6/2024,5,Too Sweet,Hozier,-,5,1
+4/6/2024,6,Austin,Dasha,13,6,3
+4/6/2024,7,Obsessed,Olivia Rodrigo,-,7,1
+4/6/2024,8,Lovin On Me,Jack Harlow,8,1,20
+4/6/2024,9,Enough (Miami),Cardi B,1,1,2
+4/6/2024,10,Punteria,Shakira & Cardi B,-,10,1
+4/6/2024,11,We Can't Be Friends (Wait For Your Love),Ariana Grande,14,4,3
+4/6/2024,12,Stranger,Olivia Rodrigo,-,12,1
+4/6/2024,13,So American,Olivia Rodrigo,-,13,1
+4/6/2024,14,FRI(END)S,V,2,2,2
+4/6/2024,15,Made For Me,Muni Long,12,8,8
+4/6/2024,16,Good Day,Forrest Frank,11,8,3
+4/6/2024,17,Stick Season,Noah Kahan,-,17,3
+4/6/2024,18,Flowers,Miley Cyrus,19,1,49
+4/6/2024,19,Scared Of My Guitar,Olivia Rodrigo,-,19,1
+4/6/2024,20,I Remember Everything,Zach Bryan Featuring Kacey Musgraves,25,4,30
+4/6/2024,21,Save Me,Jelly Roll With Lainey Wilson,18,6,42
+4/6/2024,22,Slow It Down,Benson Boone,-,22,1
+4/6/2024,23,Girl I've Always Been,Olivia Rodrigo,-,23,1
+4/6/2024,24,What Was I Made For?,Billie Eilish,10,4,25
+4/6/2024,25,Live Like You Were Dying,Tim McGraw,-,10,17
+4/13/2024,1,Texas Hold 'Em,Beyonce,3,1,8
+4/13/2024,2,Jolene,Beyonce,-,2,1
+4/13/2024,3,II Most Wanted,Beyonce & Miley Cyrus,-,3,1
+4/13/2024,4,Beautiful Things,Benson Boone,1,1,11
+4/13/2024,5,Neuron,j-hope With Gaeko & YOON MIRAE,-,5,1
+4/13/2024,6,Lose Control,Teddy Swims,4,1,38
+4/13/2024,7,Blackbiird,"Beyonce, Tanner Adell, Brittney Spencer, Tiera Kennedy & Reyna Roberts",-,7,1
+4/13/2024,8,Like That,"Future, Metro Boomin & Kendrick Lamar",2,2,2
+4/13/2024,9,FE!N,Travis Scott Featuring Playboi Carti,-,9,1
+4/13/2024,10,Too Sweet,Hozier,5,5,2
+4/13/2024,11,Save You A Seat,Alex Warren,-,11,1
+4/13/2024,12,I Wonder...,j-hope With Jung Kook,-,12,1
+4/13/2024,13,Ya Ya,Beyonce,-,13,1
+4/13/2024,14,Austin,Dasha,6,6,4
+4/13/2024,15,Levii's Jeans,Beyonce & Post Malone,-,15,1
+4/13/2024,16,What He'll Never Have,Dylan Scott,-,16,1
+4/13/2024,17,Wind Up Missin' You,Tucker Wetmore,-,17,1
+4/13/2024,18,FRI(END)S,V,14,2,3
+4/13/2024,19,Lovin On Me,Jack Harlow,8,1,21
+4/13/2024,20,Truck Bed,HARDY,-,11,12
+4/13/2024,21,Bodyguard,Beyonce,-,21,1
+4/13/2024,22,Flowers,Miley Cyrus,18,1,50
+4/13/2024,23,Live Like You Were Dying,Tim McGraw,25,10,18
+4/13/2024,24,We Can't Be Friends (Wait For Your Love),Ariana Grande,11,4,4
+4/13/2024,25,Save Me,Jelly Roll With Lainey Wilson,21,6,43
+4/20/2024,1,Wanna Be,GloRilla & Megan Thee Stallion,-,1,1
+4/20/2024,2,Beautiful Things,Benson Boone,4,1,12
+4/20/2024,3,Too Sweet,Hozier,10,3,3
+4/20/2024,4,Texas Hold 'Em,Beyonce,1,1,9
+4/20/2024,5,Total Eclipse Of The Heart,Bonnie Tyler,-,5,2
+4/20/2024,6,Lose Control,Teddy Swims,6,1,39
+4/20/2024,7,Austin,Dasha,14,6,5
+4/20/2024,8,Powerful Women,Pitbull & Dolly Parton,-,8,1
+4/20/2024,9,Need A Favor,Jelly Roll,-,2,49
+4/20/2024,10,II Most Wanted,Beyonce & Miley Cyrus,3,3,2
+4/20/2024,11,7 Minute Drill,J. Cole,-,11,1
+4/20/2024,12,Halfway To Hell,Jelly Roll,-,12,2
+4/20/2024,13,Save Me,Jelly Roll With Lainey Wilson,25,6,44
+4/20/2024,14,Like That,"Future, Metro Boomin & Kendrick Lamar",8,2,3
+4/20/2024,15,Jolene,Beyonce,2,2,2
+4/20/2024,16,Where It Ends,Bailey Zimmerman,-,6,3
+4/20/2024,17,Blackbiird,"Beyonce, Tanner Adell, Brittney Spencer, Tiera Kennedy & Reyna Roberts",7,7,2
+4/20/2024,18,Lovin On Me,Jack Harlow,19,1,22
+4/20/2024,19,"Love You, Miss You, Mean It",Luke Bryan,-,19,1
+4/20/2024,20,Save Me,Jelly Roll,-,16,12
+4/20/2024,21,Eyes Closed,Imagine Dragons,-,21,1
+4/20/2024,22,Stick Season,Noah Kahan,-,17,4
+4/20/2024,23,Love Me Like You Mean It,Kelsea Ballerini,-,23,2
+4/20/2024,24,Live Like You Were Dying,Tim McGraw,23,10,19
+4/20/2024,25,Truck Bed,HARDY,20,11,13
+4/27/2024,1,A Bar Song (Tipsy),Shaboozey,-,1,1
+4/27/2024,2,Beautiful Things,Benson Boone,2,1,13
+4/27/2024,3,God Mode,Tom MacDonald,-,3,1
+4/27/2024,4,Lose Control,Teddy Swims,6,1,40
+4/27/2024,5,Too Sweet,Hozier,3,3,4
+4/27/2024,6,Texas Hold 'Em,Beyonce,4,1,10
+4/27/2024,7,Like That,"Future, Metro Boomin & Kendrick Lamar",14,2,4
+4/27/2024,8,Espresso,Sabrina Carpenter,-,8,1
+4/27/2024,9,Wanna Be,GloRilla & Megan Thee Stallion,1,1,2
+4/27/2024,10,Austin,Dasha,7,6,6
+4/27/2024,11,White Horse,Chris Stapleton,-,5,28
+4/27/2024,12,Karma's A Bitch,Brit Smith,-,12,1
+4/27/2024,13,I Like The Way You Kiss Me,Artemas,-,13,1
+4/27/2024,14,Lil Boo Thang,Paul Russell,-,2,29
+4/27/2024,15,Need A Favor,Jelly Roll,9,2,50
+4/27/2024,16,Overflow,Transformation Worship & Todd Dulaney,-,16,1
+4/27/2024,17,Halfway To Hell,Jelly Roll,12,12,3
+4/27/2024,18,Lovin On Me,Jack Harlow,18,1,23
+4/27/2024,19,Save Me,Jelly Roll With Lainey Wilson,13,6,45
+4/27/2024,20,Where The Wild Things Are,Luke Combs,-,12,12
+4/27/2024,21,Stick Season,Noah Kahan,22,17,5
+4/27/2024,22,Hangin' On,ERNEST & Morgan Wallen,-,22,1
+4/27/2024,23,The Door,Teddy Swims,-,23,1
+4/27/2024,24,Save Me,Jelly Roll,20,16,13
+4/27/2024,25,Live Like You Were Dying,Tim McGraw,24,10,20
+5/4/2024,1,Fortnight,Taylor Swift Featuring Post Malone,-,1,1
+5/4/2024,2,FTCU,Nicki Minaj,-,1,5
+5/4/2024,3,A Bar Song (Tipsy),Shaboozey,1,1,2
+5/4/2024,4,thanK you aIMee,Taylor Swift,-,4,1
+5/4/2024,5,Beautiful Things,Benson Boone,2,1,14
+5/4/2024,6,Pirates & Parrots,Zac Brown Band Featuring Mac McAnally,-,6,1
+5/4/2024,7,So High School,Taylor Swift,-,7,1
+5/4/2024,8,I Can Do It With A Broken Heart,Taylor Swift,-,8,1
+5/4/2024,9,Lose Control,Teddy Swims,4,1,41
+5/4/2024,10,Too Sweet,Hozier,5,3,5
+5/4/2024,11,imgonnagetyouback,Taylor Swift,-,11,1
+5/4/2024,12,The Black Dog,Taylor Swift,-,12,1
+5/4/2024,13,The Prophecy,Taylor Swift,-,13,1
+5/4/2024,14,The Albatross,Taylor Swift,-,14,1
+5/4/2024,15,Texas Hold 'Em,Beyonce,6,1,11
+5/4/2024,16,The Bolter,Taylor Swift,-,16,1
+5/4/2024,17,The Manuscript,Taylor Swift,-,17,1
+5/4/2024,18,Cassandra,Taylor Swift,-,18,1
+5/4/2024,19,I Hate It Here,Taylor Swift,-,19,1
+5/4/2024,20,Push Ups,Drake,-,20,1
+5/4/2024,21,Peter,Taylor Swift,-,21,1
+5/4/2024,22,The Alchemy,Taylor Swift,-,22,1
+5/4/2024,23,How Did It End?,Taylor Swift,-,23,1
+5/4/2024,24,Chloe Or Sam Or Sophia Or Marcus,Taylor Swift,-,24,1
+5/4/2024,25,I Look In People's Windows,Taylor Swift,-,25,1
+5/11/2024,1,A Bar Song (Tipsy),Shaboozey,3,1,3
+5/11/2024,2,Beautiful Things,Benson Boone,5,1,15
+5/11/2024,3,Euphoria,Kendrick Lamar,-,3,1
+5/11/2024,4,Fortnight,Taylor Swift Featuring Post Malone,1,1,2
+5/11/2024,5,Lose Control,Teddy Swims,9,1,42
+5/11/2024,6,Too Sweet,Hozier,10,3,6
+5/11/2024,7,Texas Hold 'Em,Beyonce,15,1,12
+5/11/2024,8,Wanna Be,GloRilla & Megan Thee Stallion,-,1,3
+5/11/2024,9,Million Dollar Baby,Tommy Richman,-,9,1
+5/11/2024,10,Espresso,Sabrina Carpenter,-,8,2
+5/11/2024,11,I Can Do It With A Broken Heart,Taylor Swift,8,8,2
+5/11/2024,12,Unwritten,Natasha Bedingfield,-,3,45
+5/11/2024,13,Austin,Dasha,-,6,7
+5/11/2024,14,The Underworld,"Cast Of EPIC: The Underworld Saga, Steven Dookie & Wanda Herrans",-,14,1
+5/11/2024,15,FTCU,Nicki Minaj,2,1,6
+5/11/2024,16,Monster,Cast Of EPIC: The Underworld Saga,-,16,1
+5/11/2024,17,No Longer You,Mason Olshavsky,-,17,1
+5/11/2024,18,Cab In A Solo,Scotty McCreery,-,18,1
+5/11/2024,19,Where The Wild Things Are,Luke Combs,-,12,13
+5/11/2024,20,Lovin On Me,Jack Harlow,-,1,24
+5/11/2024,21,Save Me,Jelly Roll With Lainey Wilson,-,6,46
+5/11/2024,22,I Like The Way You Kiss Me,Artemas,-,13,2
+5/11/2024,23,Live Like You Were Dying,Tim McGraw,-,10,21
+5/11/2024,24,Legendary,Bon Jovi,-,24,1
+5/11/2024,25,Need A Favor,Jelly Roll,-,2,51
+5/18/2024,1,A Bar Song (Tipsy),Shaboozey,1,1,4
+5/18/2024,2,Not Like Us,Kendrick Lamar,-,2,1
+5/18/2024,3,Lose Control,Teddy Swims,5,1,43
+5/18/2024,4,Where That Came From,Randy Travis,-,4,1
+5/18/2024,5,Euphoria,Kendrick Lamar,3,3,2
+5/18/2024,6,Beautiful Things,Benson Boone,2,1,16
+5/18/2024,7,Meet The Grahams,Kendrick Lamar,-,7,1
+5/18/2024,8,Million Dollar Baby,Tommy Richman,9,8,2
+5/18/2024,9,Too Sweet,Hozier,6,3,7
+5/18/2024,10,Family Matters,Drake,-,10,1
+5/18/2024,11,Miles On It,Marshmello & Kane Brown,-,11,1
+5/18/2024,12,Espresso,Sabrina Carpenter,10,8,3
+5/18/2024,13,Not Today,BTS,-,13,1
+5/18/2024,14,Fortnight,Taylor Swift Featuring Post Malone,4,1,3
+5/18/2024,15,Austin,Dasha,13,6,8
+5/18/2024,16,Like That,"Future, Metro Boomin & Kendrick Lamar",-,2,5
+5/18/2024,17,Wondering Why,The Red Clay Strays,-,17,1
+5/18/2024,18,Ronald,Falling In Reverse Featuring Tech N9ne & Alex Terrible,-,18,1
+5/18/2024,19,Texas Hold 'Em,Beyonce,7,1,13
+5/18/2024,20,Go Home W U,Keith Urban & Lainey Wilson,-,20,1
+5/18/2024,21,The Door,Teddy Swims,-,21,2
+5/18/2024,22,Act III: On God? (She Like),4batz,-,22,1
+5/18/2024,23,Live Like You Were Dying,Tim McGraw,23,10,22
+5/18/2024,24,I Can Do It With A Broken Heart,Taylor Swift,11,8,3
+5/18/2024,25,Stick Season,Noah Kahan,-,17,6
+5/25/2024,1,I Had Some Help,Post Malone Featuring Morgan Wallen,-,1,1
+5/25/2024,2,A Bar Song (Tipsy),Shaboozey,1,1,5
+5/25/2024,3,Come Back To Me,RM,-,3,1
+5/25/2024,4,Not Like Us,Kendrick Lamar,2,2,2
+5/25/2024,5,Lose Control,Teddy Swims,3,1,44
+5/25/2024,6,Million Dollar Baby,Tommy Richman,8,6,3
+5/25/2024,7,Hind's Hall,Macklemore,-,7,1
+5/25/2024,8,Lose My Breath,Stray Kids Featuring Charlie Puth,-,8,1
+5/25/2024,9,Too Sweet,Hozier,9,3,8
+5/25/2024,10,Stargazing,Myles Smith,-,10,1
+5/25/2024,11,Beautiful Things,Benson Boone,6,1,17
+5/25/2024,12,Feel Like Hell Today,Cooper Alan,-,12,1
+5/25/2024,13,Miles On It,Marshmello & Kane Brown,11,11,2
+5/25/2024,14,Boa,Megan Thee Stallion,-,14,1
+5/25/2024,15,Espresso,Sabrina Carpenter,12,8,4
+5/25/2024,16,Fortnight,Taylor Swift Featuring Post Malone,14,1,4
+5/25/2024,17,Austin,Dasha,15,6,9
+5/25/2024,18,Ain't No Love In Oklahoma,Luke Combs,-,18,1
+5/25/2024,19,Ronald,Falling In Reverse Featuring Tech N9ne & Alex Terrible,18,18,2
+5/25/2024,20,Euphoria,Kendrick Lamar,5,3,3
+5/25/2024,21,I Can Do It With A Broken Heart,Taylor Swift,24,8,4
+5/25/2024,22,Beautiful As You,Thomas Rhett,-,22,1
+5/25/2024,23,Here Comes The Hotstepper,Ini Kamoze,-,23,2
+5/25/2024,24,White Horse,Chris Stapleton,-,5,29
+5/25/2024,25,Texas Hold 'Em,Beyonce,19,1,14
+6/1/2024,1,I Had Some Help,Post Malone Featuring Morgan Wallen,1,1,2
+6/1/2024,2,A Bar Song (Tipsy),Shaboozey,2,1,6
+6/1/2024,3,Beautiful Things,Benson Boone,11,1,18
+6/1/2024,4,Million Dollar Baby,Tommy Richman,6,4,4
+6/1/2024,5,Lose Control,Teddy Swims,5,1,45
+6/1/2024,6,Too Sweet,Hozier,9,3,9
+6/1/2024,7,Think I'm In Love With You,Chris Stapleton,-,7,3
+6/1/2024,8,Ain't No Love In Oklahoma,Luke Combs,18,8,2
+6/1/2024,9,Not Like Us,Kendrick Lamar,4,2,3
+6/1/2024,10,Fortnight,Taylor Swift Featuring Post Malone,16,1,5
+6/1/2024,11,Espresso,Sabrina Carpenter,15,8,5
+6/1/2024,12,Goodness Of God,CeCe Winans,-,12,3
+6/1/2024,13,Miles On It,Marshmello & Kane Brown,13,11,3
+6/1/2024,14,Good Book Bad,Will Moseley,-,14,1
+6/1/2024,15,Lunch,Billie Eilish,-,15,1
+6/1/2024,16,Austin,Dasha,17,6,10
+6/1/2024,17,Dirt Cheap,Cody Johnson,-,17,1
+6/1/2024,18,Save Me,Jelly Roll With Lainey Wilson,-,6,47
+6/1/2024,19,Sweet Dreams,Koe Wetzel,-,19,1
+6/1/2024,20,Bulletproof,Nate Smith,-,20,1
+6/1/2024,21,Made For Me,Muni Long,-,8,9
+6/1/2024,22,Birds Of A Feather,Billie Eilish,-,22,1
+6/1/2024,23,This Isn't Over,Abi Carter,-,23,1
+6/1/2024,24,Feel Like Hell Today,Cooper Alan,12,12,2
+6/1/2024,25,Hang Tight Honey,Lainey Wilson,-,25,1
+6/8/2024,1,A Bar Song (Tipsy),Shaboozey,2,1,7
+6/8/2024,2,I Had Some Help,Post Malone Featuring Morgan Wallen,1,1,3
+6/8/2024,3,Pink Skies,Zach Bryan,-,3,1
+6/8/2024,4,Million Dollar Baby,Tommy Richman,4,4,5
+6/8/2024,5,Lost!,RM,-,5,1
+6/8/2024,6,Lose Control,Teddy Swims,5,1,46
+6/8/2024,7,Beautiful Things,Benson Boone,3,1,19
+6/8/2024,8,Too Sweet,Hozier,6,3,10
+6/8/2024,9,Espresso,Sabrina Carpenter,11,8,6
+6/8/2024,10,Not Like Us,Kendrick Lamar,9,2,4
+6/8/2024,11,Think I'm In Love With You,Chris Stapleton,7,7,4
+6/8/2024,12,Miles On It,Marshmello & Kane Brown,13,11,4
+6/8/2024,13,Ain't No Love In Oklahoma,Luke Combs,8,8,3
+6/8/2024,14,Nuts,RM,-,14,1
+6/8/2024,15,"Right People, Wrong Place",RM,-,15,1
+6/8/2024,16,Fortnight,Taylor Swift Featuring Post Malone,10,1,6
+6/8/2024,17,Austin,Dasha,16,6,11
+6/8/2024,18,Groin,RM,-,18,1
+6/8/2024,19,Domodachi,RM & Little Simz,-,19,1
+6/8/2024,20,Heaven,RM,-,20,1
+6/8/2024,21,Around The World In A Day,RM & Moses Sumney,-,21,1
+6/8/2024,22,Out Of Love,RM,-,22,1
+6/8/2024,23,Save Me,Jelly Roll With Lainey Wilson,18,6,48
+6/8/2024,24,? (Interlude),"RM, DOMi & JD BECK",-,24,1
+6/8/2024,25,TT TT (Credit Roll),RM,-,25,1
+6/15/2024,1,Houdini,Eminem,-,1,1
+6/15/2024,2,A Bar Song (Tipsy),Shaboozey,1,1,8
+6/15/2024,3,I Had Some Help,Post Malone Featuring Morgan Wallen,2,1,4
+6/15/2024,4,Wanna Be,GloRilla & Megan Thee Stallion,-,1,4
+6/15/2024,5,Million Dollar Baby,Tommy Richman,4,4,6
+6/15/2024,6,Too Sweet,Hozier,8,3,11
+6/15/2024,7,Lose Control,Teddy Swims,6,1,47
+6/15/2024,8,Pink Skies,Zach Bryan,3,3,2
+6/15/2024,9,Espresso,Sabrina Carpenter,9,8,7
+6/15/2024,10,Beautiful Things,Benson Boone,7,1,20
+6/15/2024,11,Miles On It,Marshmello & Kane Brown,12,11,5
+6/15/2024,12,Not Like Us,Kendrick Lamar,10,2,5
+6/15/2024,13,Ain't No Love In Oklahoma,Luke Combs,13,8,4
+6/15/2024,14,Don't Stop Believin',Journey,-,13,74
+6/15/2024,15,Austin,Dasha,17,6,12
+6/15/2024,16,Think I'm In Love With You,Chris Stapleton,11,7,5
+6/15/2024,17,Stargazing,Myles Smith,-,10,2
+6/15/2024,18,Birds Of A Feather,Billie Eilish,-,18,2
+6/15/2024,19,Wondering Why,The Red Clay Strays,-,17,2
+6/15/2024,20,Save Me,Jelly Roll With Lainey Wilson,23,6,49
+6/15/2024,21,Fortnight,Taylor Swift Featuring Post Malone,16,1,7
+6/15/2024,22,Cowgirls,Morgan Wallen Featuring ERNEST,-,22,2
+6/15/2024,23,The Door,Teddy Swims,-,21,3
+6/15/2024,24,Halfway To Hell,Jelly Roll,-,12,4
+6/15/2024,25,Need A Favor,Jelly Roll,-,2,52
+6/22/2024,1,A Bar Song (Tipsy),Shaboozey,2,1,9
+6/22/2024,2,Houdini,Eminem,1,1,2
+6/22/2024,3,Never Let Go,Jung Kook,-,3,1
+6/22/2024,4,I Had Some Help,Post Malone Featuring Morgan Wallen,3,1,5
+6/22/2024,5,I Am Not Okay,Jelly Roll,-,5,1
+6/22/2024,6,Espresso,Sabrina Carpenter,9,6,8
+6/22/2024,7,Please Please Please,Sabrina Carpenter,-,7,1
+6/22/2024,8,Too Sweet,Hozier,6,3,12
+6/22/2024,9,Beautiful Things,Benson Boone,10,1,21
+6/22/2024,10,High Road,Koe Wetzel & Jessie Murph,-,10,1
+6/22/2024,11,Million Dollar Baby,Tommy Richman,5,4,7
+6/22/2024,12,Lose Control,Teddy Swims,7,1,48
+6/22/2024,13,Pink Skies,Zach Bryan,8,3,3
+6/22/2024,14,All My Life,Falling In Reverse & Jelly Roll,-,14,1
+6/22/2024,15,Miles On It,Marshmello & Kane Brown,11,11,6
+6/22/2024,16,Not Like Us,Kendrick Lamar,12,2,6
+6/22/2024,17,Ain't No Love In Oklahoma,Luke Combs,13,8,5
+6/22/2024,18,Relapse,Warren Zeiders,-,18,1
+6/22/2024,19,Austin,Dasha,15,6,13
+6/22/2024,20,Birds Of A Feather,Billie Eilish,18,18,3
+6/22/2024,21,Save Me,Jelly Roll With Lainey Wilson,20,6,50
+6/22/2024,22,Pink Friday Girls,Nicki Minaj,-,5,3
+6/22/2024,23,Think I'm In Love With You,Chris Stapleton,16,7,6
+6/22/2024,24,The Door,Teddy Swims,23,21,4
+6/22/2024,25,Whoops,Meghan Trainor,-,25,1
+6/29/2024,1,A Bar Song (Tipsy),Shaboozey,1,1,10
+6/29/2024,2,I Am Not Okay,Jelly Roll,5,2,2
+6/29/2024,3,I Had Some Help,Post Malone Featuring Morgan Wallen,4,1,6
+6/29/2024,4,Houdini,Eminem,2,1,3
+6/29/2024,5,Whiskey Whiskey,Moneybagg Yo Featuring Morgan Wallen,-,5,1
+6/29/2024,6,Too Sweet,Hozier,8,3,13
+6/29/2024,7,Please Please Please,Sabrina Carpenter,7,7,2
+6/29/2024,8,Beautiful Things,Benson Boone,9,1,22
+6/29/2024,9,Espresso,Sabrina Carpenter,6,6,9
+6/29/2024,10,Me Vs. You,Tom MacDonald,-,10,1
+6/29/2024,11,Million Dollar Baby,Tommy Richman,11,4,8
+6/29/2024,12,Lose Control,Teddy Swims,12,1,49
+6/29/2024,13,Pink Skies,Zach Bryan,13,3,4
+6/29/2024,14,Not Like Us,Kendrick Lamar,16,2,7
+6/29/2024,15,Remember Him That Way,Luke Combs,-,15,1
+6/29/2024,16,Miles On It,Marshmello & Kane Brown,15,11,7
+6/29/2024,17,High Road,Koe Wetzel & Jessie Murph,10,10,2
+6/29/2024,18,Birds Of A Feather,Billie Eilish,20,18,4
+6/29/2024,19,Ain't No Love In Oklahoma,Luke Combs,17,8,6
+6/29/2024,20,Austin,Dasha,19,6,14
+6/29/2024,21,Don't Give Up On Me,Andy Grammer,-,16,14
+6/29/2024,22,Cowgirls,Morgan Wallen Featuring ERNEST,-,22,3
+6/29/2024,23,Stargazing,Myles Smith,-,10,3
+6/29/2024,24,The Door,Teddy Swims,24,21,5
+6/29/2024,25,Think I'm In Love With You,Chris Stapleton,23,7,7
+7/6/2024,1,A Bar Song (Tipsy),Shaboozey,1,1,11
+7/6/2024,2,Pour Me A Drink,Post Malone Featuring Blake Shelton,-,2,1
+7/6/2024,3,I Had Some Help,Post Malone Featuring Morgan Wallen,3,1,7
+7/6/2024,4,I Am Not Okay,Jelly Roll,2,2,3
+7/6/2024,5,Not Like Us,Kendrick Lamar,14,2,8
+7/6/2024,6,Houdini,Eminem,4,1,4
+7/6/2024,7,Too Sweet,Hozier,6,3,14
+7/6/2024,8,Beautiful Things,Benson Boone,8,1,23
+7/6/2024,9,Espresso,Sabrina Carpenter,9,6,10
+7/6/2024,10,Please Please Please,Sabrina Carpenter,7,7,3
+7/6/2024,11,Lose Control,Teddy Swims,12,1,50
+7/6/2024,12,Pink Skies,Zach Bryan,13,3,5
+7/6/2024,13,Million Dollar Baby,Tommy Richman,11,4,9
+7/6/2024,14,Don't Give Up On Me,Andy Grammer,21,14,15
+7/6/2024,15,Us.,Gracie Abrams Featuring Taylor Swift,-,15,1
+7/6/2024,16,Whiskey Whiskey,Moneybagg Yo Featuring Morgan Wallen,5,5,2
+7/6/2024,17,You Look Like You Love Me,Ella Langley Featuring Riley Green,-,17,1
+7/6/2024,18,Miles On It,Marshmello & Kane Brown,16,11,8
+7/6/2024,19,"Good Luck, Babe!",Chappell Roan,-,19,1
+7/6/2024,20,I Was Gonna Be,Rachel Holt,-,20,1
+7/6/2024,21,The Boy Is Mine,"Ariana Grande, Brandy & Monica",-,21,1
+7/6/2024,22,Birds Of A Feather,Billie Eilish,18,18,5
+7/6/2024,23,Ain't No Love In Oklahoma,Luke Combs,19,8,7
+7/6/2024,24,Austin,Dasha,20,6,15
+7/6/2024,25,Save Me,Jelly Roll With Lainey Wilson,-,6,51
+7/13/2024,1,A Bar Song (Tipsy),Shaboozey,1,1,12
+7/13/2024,2,I Had Some Help,Post Malone Featuring Morgan Wallen,3,1,8
+7/13/2024,3,Smeraldo Garden Marching Band,Jimin & Loco,-,3,1
+7/13/2024,4,I Am Not Okay,Jelly Roll,4,2,4
+7/13/2024,5,Pour Me A Drink,Post Malone Featuring Blake Shelton,2,2,2
+7/13/2024,6,Not Like Us,Kendrick Lamar,5,2,9
+7/13/2024,7,Rockstar,LISA,-,7,1
+7/13/2024,8,Houdini,Eminem,6,1,5
+7/13/2024,9,Too Sweet,Hozier,7,3,15
+7/13/2024,10,Beautiful Things,Benson Boone,8,1,24
+7/13/2024,11,Espresso,Sabrina Carpenter,9,6,11
+7/13/2024,12,Pink Skies,Zach Bryan,12,3,6
+7/13/2024,13,Lose Control,Teddy Swims,11,1,51
+7/13/2024,14,Please Please Please,Sabrina Carpenter,10,7,4
+7/13/2024,15,Million Dollar Baby,Tommy Richman,13,4,10
+7/13/2024,16,"Good Luck, Babe!",Chappell Roan,19,16,2
+7/13/2024,17,You Look Like You Love Me,Ella Langley Featuring Riley Green,17,17,2
+7/13/2024,18,Miles On It,Marshmello & Kane Brown,18,11,9
+7/13/2024,19,God Bless The USA,Lee Greenwood,-,1,12
+7/13/2024,20,Cowgirls,Morgan Wallen Featuring ERNEST,-,20,4
+7/13/2024,21,Cowboys Cry Too,Kelsea Ballerini & Noah Kahan,-,21,1
+7/13/2024,22,Whiskey Whiskey,Moneybagg Yo Featuring Morgan Wallen,16,5,3
+7/13/2024,23,Ain't No Love In Oklahoma,Luke Combs,23,8,8
+7/13/2024,24,Birds Of A Feather,Billie Eilish,22,18,6
+7/13/2024,25,Tobey,"Eminem, Big Sean & BabyTron",-,25,1
+7/20/2024,1,A Bar Song (Tipsy),Shaboozey,1,1,13
+7/20/2024,2,Lies Lies Lies,Morgan Wallen,-,2,1
+7/20/2024,3,I Had Some Help,Post Malone Featuring Morgan Wallen,2,1,9
+7/20/2024,4,Not Like Us,Kendrick Lamar,6,2,10
+7/20/2024,5,I Am Not Okay,Jelly Roll,4,2,5
+7/20/2024,6,Too Sweet,Hozier,9,3,16
+7/20/2024,7,Lose Control,Teddy Swims,13,1,52
+7/20/2024,8,Beautiful Things,Benson Boone,10,1,25
+7/20/2024,9,Pour Me A Drink,Post Malone Featuring Blake Shelton,5,2,3
+7/20/2024,10,Espresso,Sabrina Carpenter,11,6,12
+7/20/2024,11,Houdini,Eminem,8,1,6
+7/20/2024,12,Pink Skies,Zach Bryan,12,3,7
+7/20/2024,13,You Look Like You Love Me,Ella Langley Featuring Riley Green,17,13,3
+7/20/2024,14,Please Please Please,Sabrina Carpenter,14,7,5
+7/20/2024,15,"Good Luck, Babe!",Chappell Roan,16,15,3
+7/20/2024,16,Million Dollar Baby,Tommy Richman,15,4,11
+7/20/2024,17,Tobey,"Eminem, Big Sean & BabyTron",25,17,2
+7/20/2024,18,Cowgirls,Morgan Wallen Featuring ERNEST,20,18,5
+7/20/2024,19,Fortnight,Taylor Swift Featuring Post Malone,-,1,8
+7/20/2024,20,Miles On It,Marshmello & Kane Brown,18,11,10
+7/20/2024,21,Birds Of A Feather,Billie Eilish,24,18,7
+7/20/2024,22,Stargazing,Myles Smith,-,10,4
+7/20/2024,23,Whiskey Whiskey,Moneybagg Yo Featuring Morgan Wallen,22,5,4
+7/20/2024,24,Ain't No Love In Oklahoma,Luke Combs,23,8,9
+7/20/2024,25,Austin,Dasha,-,6,16
+7/27/2024,1,You Missed,Tom MacDonald,-,1,1
+7/27/2024,2,A Bar Song (Tipsy),Shaboozey,1,1,14
+7/27/2024,3,Revelation,John Rich Featuring Sonya Isaacs,-,3,1
+7/27/2024,4,I Had Some Help,Post Malone Featuring Morgan Wallen,3,1,10
+7/27/2024,5,Somebody Save Me,Eminem & Jelly Roll,-,5,1
+7/27/2024,6,Not Like Us,Kendrick Lamar,4,2,11
+7/27/2024,7,Lose Control,Teddy Swims,7,1,53
+7/27/2024,8,I Am Not Okay,Jelly Roll,5,2,6
+7/27/2024,9,Too Sweet,Hozier,6,3,17
+7/27/2024,10,Espresso,Sabrina Carpenter,10,6,13
+7/27/2024,11,Lies Lies Lies,Morgan Wallen,2,2,2
+7/27/2024,12,Beautiful Things,Benson Boone,8,1,26
+7/27/2024,13,Million Dollar Baby,Tommy Richman,16,4,12
+7/27/2024,14,Many Men (Wish Death),50 Cent,-,14,1
+7/27/2024,15,You Look Like You Love Me,Ella Langley Featuring Riley Green,13,13,4
+7/27/2024,16,Miles On It,Marshmello & Kane Brown,20,11,11
+7/27/2024,17,Please Please Please,Sabrina Carpenter,14,7,6
+7/27/2024,18,I Like It,Alesso & Nate Smith,-,18,1
+7/27/2024,19,Pour Me A Drink,Post Malone Featuring Blake Shelton,9,2,4
+7/27/2024,20,Pink Skies,Zach Bryan,12,3,8
+7/27/2024,21,God Bless The USA,Lee Greenwood,-,1,13
+7/27/2024,22,"Good Luck, Babe!",Chappell Roan,15,15,4
+7/27/2024,23,High Road,Koe Wetzel & Jessie Murph,-,10,3
+7/27/2024,24,Stargazing,Myles Smith,22,10,5
+7/27/2024,25,Birds Of A Feather,Billie Eilish,21,18,8
+8/3/2024,1,Who,Jimin,-,1,1
+8/3/2024,2,A Bar Song (Tipsy),Shaboozey,2,1,15
+8/3/2024,3,Chk Chk Boom,Stray Kids,-,3,1
+8/3/2024,4,Ain't No Love In Oklahoma,Luke Combs,-,4,10
+8/3/2024,5,I Had Some Help,Post Malone Featuring Morgan Wallen,4,1,11
+8/3/2024,6,Revelation,John Rich Featuring Sonya Isaacs,3,3,2
+8/3/2024,7,You Missed,Tom MacDonald,1,1,2
+8/3/2024,8,I Am Not Okay,Jelly Roll,8,2,7
+8/3/2024,9,Too Sweet,Hozier,9,3,18
+8/3/2024,10,Not Like Us,Kendrick Lamar,6,2,12
+8/3/2024,11,Espresso,Sabrina Carpenter,10,6,14
+8/3/2024,12,Lose Control,Teddy Swims,7,1,54
+8/3/2024,13,Beautiful Things,Benson Boone,12,1,27
+8/3/2024,14,Miles On It,Marshmello & Kane Brown,16,11,12
+8/3/2024,15,You Look Like You Love Me,Ella Langley Featuring Riley Green,15,13,5
+8/3/2024,16,Dead End Road,Jelly Roll,-,16,1
+8/3/2024,17,"Good Luck, Babe!",Chappell Roan,22,15,5
+8/3/2024,18,Lies Lies Lies,Morgan Wallen,11,2,3
+8/3/2024,19,Out Of Oklahoma,Lainey Wilson,-,19,1
+8/3/2024,20,Million Dollar Baby,Tommy Richman,13,4,13
+8/3/2024,21,Be Mine,Jimin,-,21,1
+8/3/2024,22,Birds Of A Feather,Billie Eilish,25,18,9
+8/3/2024,23,Please Please Please,Sabrina Carpenter,17,7,7
+8/3/2024,24,Pour Me A Drink,Post Malone Featuring Blake Shelton,19,2,5
+8/3/2024,25,Pink Skies,Zach Bryan,20,3,9
+8/10/2024,1,Who,Jimin,1,1,2
+8/10/2024,2,A Bar Song (Tipsy),Shaboozey,2,1,16
+8/10/2024,3,Lonely Road,mgk & Jelly Roll,-,3,1
+8/10/2024,4,Guy For That,Post Malone Featuring Luke Combs,-,4,1
+8/10/2024,5,I Had Some Help,Post Malone Featuring Morgan Wallen,5,1,12
+8/10/2024,6,Ain't No Love In Oklahoma,Luke Combs,4,4,11
+8/10/2024,7,That's Who I Praise,Brandon Lake,-,7,1
+8/10/2024,8,I Am Not Okay,Jelly Roll,8,2,8
+8/10/2024,9,Lose Control,Teddy Swims,12,1,55
+8/10/2024,10,Not Like Us,Kendrick Lamar,10,2,13
+8/10/2024,11,Too Sweet,Hozier,9,3,19
+8/10/2024,12,Beautiful Things,Benson Boone,13,1,28
+8/10/2024,13,Espresso,Sabrina Carpenter,11,6,15
+8/10/2024,14,You Look Like You Love Me,Ella Langley Featuring Riley Green,15,13,6
+8/10/2024,15,Birds Of A Feather,Billie Eilish,22,15,10
+8/10/2024,16,Pour Me A Drink,Post Malone Featuring Blake Shelton,24,2,6
+8/10/2024,17,Miles On It,Marshmello & Kane Brown,14,11,13
+8/10/2024,18,Lies Lies Lies,Morgan Wallen,18,2,4
+8/10/2024,19,"Good Luck, Babe!",Chappell Roan,17,15,6
+8/10/2024,20,Million Dollar Baby,Tommy Richman,20,4,14
+8/10/2024,21,Big Dawgs,Hanumankind X Kalmi,-,21,1
+8/10/2024,22,Pink Skies,Zach Bryan,25,3,10
+8/10/2024,23,Cowgirls,Morgan Wallen Featuring ERNEST,-,18,6
+8/10/2024,24,Stargazing,Myles Smith,-,10,6
+8/10/2024,25,Houdini,Eminem,-,1,7
+8/17/2024,1,A Bar Song (Tipsy),Shaboozey,2,1,17
+8/17/2024,2,Leave A Light On (Talk Away The Dark),Papa Roach & Carrie Underwood,-,2,1
+8/17/2024,3,I Had Some Help,Post Malone Featuring Morgan Wallen,5,1,13
+8/17/2024,4,Liar,Jelly Roll,-,4,1
+8/17/2024,5,Ain't No Love In Oklahoma,Luke Combs,6,4,12
+8/17/2024,6,I Am Not Okay,Jelly Roll,8,2,9
+8/17/2024,7,Lonely Road,mgk & Jelly Roll,3,3,2
+8/17/2024,8,Guess,Charli xcx Featuring Billie Eilish,-,8,1
+8/17/2024,9,Lose Control,Teddy Swims,9,1,56
+8/17/2024,10,Too Sweet,Hozier,11,3,20
+8/17/2024,11,Big Dawgs,Hanumankind X Kalmi,21,11,2
+8/17/2024,12,Not Like Us,Kendrick Lamar,10,2,14
+8/17/2024,13,"Good Luck, Babe!",Chappell Roan,19,13,7
+8/17/2024,14,Birds Of A Feather,Billie Eilish,15,14,11
+8/17/2024,15,Beautiful Things,Benson Boone,12,1,29
+8/17/2024,16,Who,Jimin,1,1,3
+8/17/2024,17,Espresso,Sabrina Carpenter,13,6,16
+8/17/2024,18,6AM Thoughts,NAV & Bay Swag Featuring Cash Cobain,-,18,1
+8/17/2024,19,Lies Lies Lies,Morgan Wallen,18,2,5
+8/17/2024,20,You Look Like You Love Me,Ella Langley Featuring Riley Green,14,13,7
+8/17/2024,21,Pink Skies,Zach Bryan,22,3,11
+8/17/2024,22,Pour Me A Drink,Post Malone Featuring Blake Shelton,16,2,7
+8/17/2024,23,Million Dollar Baby,Tommy Richman,20,4,15
+8/17/2024,24,Houdini,Eminem,25,1,8
+8/17/2024,25,The Door,Teddy Swims,-,21,6
+8/24/2024,1,A Bar Song (Tipsy),Shaboozey,1,1,18
+8/24/2024,2,Birds Of A Feather,Billie Eilish,14,2,12
+8/24/2024,3,I Had Some Help,Post Malone Featuring Morgan Wallen,3,1,14
+8/24/2024,4,I Am Not Okay,Jelly Roll,6,2,10
+8/24/2024,5,Ain't No Love In Oklahoma,Luke Combs,5,4,13
+8/24/2024,6,Lose Control,Teddy Swims,9,1,57
+8/24/2024,7,Who,Jimin,16,1,4
+8/24/2024,8,"Good Luck, Babe!",Chappell Roan,13,8,8
+8/24/2024,9,Too Sweet,Hozier,10,3,21
+8/24/2024,10,Not Like Us,Kendrick Lamar,12,2,15
+8/24/2024,11,Big Dawgs,Hanumankind X Kalmi,11,11,3
+8/24/2024,12,Beautiful Things,Benson Boone,15,1,30
+8/24/2024,13,Lonely Road,mgk & Jelly Roll,7,3,3
+8/24/2024,14,Espresso,Sabrina Carpenter,17,6,17
+8/24/2024,15,You Look Like You Love Me,Ella Langley Featuring Riley Green,20,13,8
+8/24/2024,16,Like A Prayer,Madonna,-,16,2
+8/24/2024,17,Leave A Light On (Talk Away The Dark),Papa Roach & Carrie Underwood,2,2,2
+8/24/2024,18,Pink Skies,Zach Bryan,21,3,12
+8/24/2024,19,Pour Me A Drink,Post Malone Featuring Blake Shelton,22,2,8
+8/24/2024,20,Miles On It,Marshmello & Kane Brown,-,11,14
+8/24/2024,21,Please Please Please,Sabrina Carpenter,-,7,8
+8/24/2024,22,Lies Lies Lies,Morgan Wallen,19,2,6
+8/24/2024,23,The Door,Teddy Swims,25,21,7
+8/24/2024,24,Million Dollar Baby,Tommy Richman,23,4,16
+8/24/2024,25,Stargazing,Myles Smith,-,10,7
+8/31/2024,1,Die With A Smile,Lady Gaga & Bruno Mars,-,1,1
+8/31/2024,2,A Bar Song (Tipsy),Shaboozey,1,1,19
+8/31/2024,3,Ain't No Love In Oklahoma,Luke Combs,5,3,14
+8/31/2024,4,Yours,Post Malone,-,4,1
+8/31/2024,5,Birds Of A Feather,Billie Eilish,2,2,13
+8/31/2024,6,I Am Not Okay,Jelly Roll,4,2,11
+8/31/2024,7,"Good Luck, Babe!",Chappell Roan,8,7,9
+8/31/2024,8,Lose Control,Teddy Swims,6,1,58
+8/31/2024,9,Jesus Saves,Cooper Alan,-,9,1
+8/31/2024,10,Beautiful Things,Benson Boone,12,1,31
+8/31/2024,11,Too Sweet,Hozier,9,3,22
+8/31/2024,12,Espresso,Sabrina Carpenter,14,6,18
+8/31/2024,13,Big Dawgs,Hanumankind X Kalmi,11,11,4
+8/31/2024,14,Not Like Us,Kendrick Lamar,10,2,16
+8/31/2024,15,Miles On It,Marshmello & Kane Brown,20,11,15
+8/31/2024,16,Who,Jimin,7,1,5
+8/31/2024,17,The Door,Teddy Swims,23,17,8
+8/31/2024,18,Fallin' In Love,Post Malone,-,18,1
+8/31/2024,19,You Look Like You Love Me,Ella Langley Featuring Riley Green,15,13,9
+8/31/2024,20,Stargazing,Myles Smith,25,10,8
+8/31/2024,21,Lonely Road,mgk & Jelly Roll,13,3,4
+8/31/2024,22,Ain't How It Ends,Post Malone,-,22,1
+8/31/2024,23,Pink Skies,Zach Bryan,18,3,13
+8/31/2024,24,Losers,Post Malone Featuring Jelly Roll,-,24,1
+8/31/2024,25,Freedom,Beyonce Featuring Kendrick Lamar,-,20,3
+9/7/2024,1,A Bar Song (Tipsy),Shaboozey,2,1,20
+9/7/2024,2,Lose Control,Teddy Swims,8,1,59
+9/7/2024,3,Die With A Smile,Lady Gaga & Bruno Mars,1,1,2
+9/7/2024,4,Ain't No Love In Oklahoma,Luke Combs,3,3,15
+9/7/2024,5,Taste,Sabrina Carpenter,-,5,1
+9/7/2024,6,Everybody Needs Me,Tom MacDonald,-,6,1
+9/7/2024,7,I Am Not Okay,Jelly Roll,6,2,12
+9/7/2024,8,Birds Of A Feather,Billie Eilish,5,2,14
+9/7/2024,9,I Had Some Help,Post Malone Featuring Morgan Wallen,-,1,15
+9/7/2024,10,Big Dawgs,Hanumankind X Kalmi,13,10,5
+9/7/2024,11,Beautiful Things,Benson Boone,10,1,32
+9/7/2024,12,The Last,Agust D,-,12,1
+9/7/2024,13,"Good Luck, Babe!",Chappell Roan,7,7,10
+9/7/2024,14,Too Sweet,Hozier,11,3,23
+9/7/2024,15,The Door,Teddy Swims,17,15,9
+9/7/2024,16,A Lot More Free,Max McNown,-,16,1
+9/7/2024,17,Miles On It,Marshmello & Kane Brown,15,11,16
+9/7/2024,18,You Look Like You Love Me,Ella Langley Featuring Riley Green,19,13,10
+9/7/2024,19,Somebody Save Me,Eminem & Jelly Roll,-,5,2
+9/7/2024,20,Not Like Us,Kendrick Lamar,14,2,17
+9/7/2024,21,Stargazing,Myles Smith,20,10,9
+9/7/2024,22,Lonely Road,mgk & Jelly Roll,21,3,5
+9/7/2024,23,Fix What You Didn't Break,Nate Smith,-,23,1
+9/7/2024,24,Two Blue Chairs & You,Zac Brown Band,-,24,1
+9/7/2024,25,We Are Bulletproof : The Eternal,BTS,-,10,3
+9/14/2024,1,A Bar Song (Tipsy),Shaboozey,1,1,21
+9/14/2024,2,Ain't No Love In Oklahoma,Luke Combs,4,2,16
+9/14/2024,3,A Lot More Free,Max McNown,16,3,2
+9/14/2024,4,Lose Control,Teddy Swims,2,1,60
+9/14/2024,5,Die With A Smile,Lady Gaga & Bruno Mars,3,1,3
+9/14/2024,6,I Had Some Help,Post Malone Featuring Morgan Wallen,9,1,16
+9/14/2024,7,Birds Of A Feather,Billie Eilish,8,2,15
+9/14/2024,8,I Am Not Okay,Jelly Roll,7,2,13
+9/14/2024,9,Beautiful Things,Benson Boone,11,1,33
+9/14/2024,10,Too Sweet,Hozier,14,3,24
+9/14/2024,11,Big Dawgs,Hanumankind X Kalmi,10,10,6
+9/14/2024,12,"Good Luck, Babe!",Chappell Roan,13,7,11
+9/14/2024,13,You Look Like You Love Me,Ella Langley Featuring Riley Green,18,13,11
+9/14/2024,14,Taste,Sabrina Carpenter,5,5,2
+9/14/2024,15,The Door,Teddy Swims,15,15,10
+9/14/2024,16,Ships That Don’t Come In,"Joe Diffie, Toby Keith & Luke Combs",-,16,1
+9/14/2024,17,Miles On It,Marshmello & Kane Brown,17,11,17
+9/14/2024,18,Espresso,Sabrina Carpenter,-,6,19
+9/14/2024,19,Not Like Us,Kendrick Lamar,20,2,18
+9/14/2024,20,Stargazing,Myles Smith,21,10,10
+9/14/2024,21,Lonely Road,mgk & Jelly Roll,22,3,6
+9/14/2024,22,Pink Skies,Zach Bryan,-,3,14
+9/14/2024,23,Please Please Please,Sabrina Carpenter,-,7,9
+9/14/2024,24,Hot To Go!,Chappell Roan,-,24,1
+9/14/2024,25,Million Dollar Baby,Tommy Richman,-,4,17
+9/21/2024,1,Neva Play,Megan Thee Stallion & RM,-,1,1
+9/21/2024,2,A Bar Song (Tipsy),Shaboozey,1,1,22
+9/21/2024,3,The Emptiness Machine,Linkin Park,-,3,1
+9/21/2024,4,A Lot More Free,Max McNown,3,3,3
+9/21/2024,5,Lose Control,Teddy Swims,4,1,61
+9/21/2024,6,Ain't No Love In Oklahoma,Luke Combs,2,2,17
+9/21/2024,7,The Door,Teddy Swims,15,7,11
+9/21/2024,8,Beautiful Things,Benson Boone,9,1,34
+9/21/2024,9,Die With A Smile,Lady Gaga & Bruno Mars,5,1,4
+9/21/2024,10,Birds Of A Feather,Billie Eilish,7,2,16
+9/21/2024,11,I Had Some Help,Post Malone Featuring Morgan Wallen,6,1,17
+9/21/2024,12,I Am Not Okay,Jelly Roll,8,2,14
+9/21/2024,13,"Good Luck, Babe!",Chappell Roan,12,7,12
+9/21/2024,14,You Look Like You Love Me,Ella Langley Featuring Riley Green,13,13,12
+9/21/2024,15,Too Sweet,Hozier,10,3,25
+9/21/2024,16,Espresso,Sabrina Carpenter,18,6,20
+9/21/2024,17,Big Dawgs,Hanumankind X Kalmi,11,10,7
+9/21/2024,18,Taste,Sabrina Carpenter,14,5,3
+9/21/2024,19,Criminals,Meghan Trainor,-,19,1
+9/21/2024,20,Murdergram Deux,LL COOL J Featuring Eminem,-,20,1
+9/21/2024,21,Miles On It,Marshmello & Kane Brown,17,11,18
+9/21/2024,22,Not Like Us,Kendrick Lamar,19,2,19
+9/21/2024,23,Who,Jimin,-,1,6
+9/21/2024,24,Stargazing,Myles Smith,20,10,11
+9/21/2024,25,Million Dollar Baby,Tommy Richman,25,4,18
+9/28/2024,1,Dancing In The Flames,The Weeknd,-,1,1
+9/28/2024,2,Bad Dreams,Teddy Swims,-,2,1
+9/28/2024,3,A Bar Song (Tipsy),Shaboozey,2,1,23
+9/28/2024,4,Fighter,Jon Kahn,-,4,1
+9/28/2024,5,Beautiful Things,Benson Boone,8,1,35
+9/28/2024,6,Lose Control,Teddy Swims,5,1,62
+9/28/2024,7,I Am Not Okay,Jelly Roll,12,2,15
+9/28/2024,8,The Door,Teddy Swims,7,7,12
+9/28/2024,9,Ain't No Love In Oklahoma,Luke Combs,6,2,18
+9/28/2024,10,"Good Luck, Babe!",Chappell Roan,13,7,13
+9/28/2024,11,A Lot More Free,Max McNown,4,3,4
+9/28/2024,12,Die With A Smile,Lady Gaga & Bruno Mars,9,1,5
+9/28/2024,13,I Had Some Help,Post Malone Featuring Morgan Wallen,11,1,18
+9/28/2024,14,Birds Of A Feather,Billie Eilish,10,2,17
+9/28/2024,15,Murdergram Deux,LL COOL J Featuring Eminem,20,15,2
+9/28/2024,16,Espresso,Sabrina Carpenter,16,6,21
+9/28/2024,17,You Look Like You Love Me,Ella Langley Featuring Riley Green,14,13,13
+9/28/2024,18,Taste,Sabrina Carpenter,18,5,4
+9/28/2024,19,The Emptiness Machine,Linkin Park,3,3,2
+9/28/2024,20,Too Sweet,Hozier,15,3,26
+9/28/2024,21,Miles On It,Marshmello & Kane Brown,21,11,19
+9/28/2024,22,Sunday In The South,"Shenandoah, Jason Aldean & Luke Bryan",-,22,1
+9/28/2024,23,I Love The Way You Love Me,Walker Montgomery,-,23,1
+9/28/2024,24,Hot To Go!,Chappell Roan,-,24,2
+9/28/2024,25,Pink Pony Club,Chappell Roan,-,25,1
+10/5/2024,1,Fighter,Jon Kahn,4,1,2
+10/5/2024,2,A Bar Song (Tipsy),Shaboozey,3,1,24
+10/5/2024,3,I Am Not Okay,Jelly Roll,7,2,16
+10/5/2024,4,A Lot More Free,Max McNown,11,3,5
+10/5/2024,5,Lose Control,Teddy Swims,6,1,63
+10/5/2024,6,"Good Luck, Babe!",Chappell Roan,10,6,14
+10/5/2024,7,Ain't No Love In Oklahoma,Luke Combs,9,2,19
+10/5/2024,8,Birds Of A Feather,Billie Eilish,14,2,18
+10/5/2024,9,Die With A Smile,Lady Gaga & Bruno Mars,12,1,6
+10/5/2024,10,The Door,Teddy Swims,8,7,13
+10/5/2024,11,I Had Some Help,Post Malone Featuring Morgan Wallen,13,1,19
+10/5/2024,12,Beautiful Things,Benson Boone,5,1,36
+10/5/2024,13,September,"Earth, Wind & Fire",-,12,9
+10/5/2024,14,You Look Like You Love Me,Ella Langley Featuring Riley Green,17,13,14
+10/5/2024,15,Hot To Go!,Chappell Roan,24,15,3
+10/5/2024,16,Burning Down,Alex Warren,-,16,1
+10/5/2024,17,Still Proud To Be An American,Kyle Coulahan,-,17,1
+10/5/2024,18,Bad Dreams,Teddy Swims,2,2,2
+10/5/2024,19,Espresso,Sabrina Carpenter,16,6,22
+10/5/2024,20,Too Sweet,Hozier,20,3,27
+10/5/2024,21,Miles On It,Marshmello & Kane Brown,21,11,20
+10/5/2024,22,The Ballad Of The Witches' Road (Sacred Chant),"Kathryn Hahn, Sasheer Zamata, Ali Ahn, Patti LuPone, Debra Jo Rupp & Agatha All Along Cast",-,22,1
+10/5/2024,23,Taste,Sabrina Carpenter,18,5,5
+10/5/2024,24,Heavy Is The Crown,Linkin Park,-,24,1
+10/5/2024,25,Pink Pony Club,Chappell Roan,25,25,2
+10/12/2024,1,I'm Gonna Love You,Cody Johnson & Carrie Underwood,-,1,1
+10/12/2024,2,A Bar Song (Tipsy),Shaboozey,2,1,25
+10/12/2024,3,A Lot More Free,Max McNown,4,3,6
+10/12/2024,4,Timeless,The Weeknd & Playboi Carti,-,4,1
+10/12/2024,5,I Am Not Okay,Jelly Roll,3,2,17
+10/12/2024,6,Birds Of A Feather,Billie Eilish,8,2,19
+10/12/2024,7,Coming Home,Timcast Featuring Phil Labonte,-,7,1
+10/12/2024,8,Lonely Road,mgk & Jelly Roll,-,3,7
+10/12/2024,9,Die With A Smile,Lady Gaga & Bruno Mars,9,1,7
+10/12/2024,10,Lose Control,Teddy Swims,5,1,64
+10/12/2024,11,Liar,Jelly Roll,-,4,2
+10/12/2024,12,The Door,Teddy Swims,10,7,14
+10/12/2024,13,"Good Luck, Babe!",Chappell Roan,6,6,15
+10/12/2024,14,You Look Like You Love Me,Ella Langley Featuring Riley Green,14,13,15
+10/12/2024,15,Beautiful Things,Benson Boone,12,1,37
+10/12/2024,16,Ain't No Love In Oklahoma,Luke Combs,7,2,20
+10/12/2024,17,The Lighthouse,Stevie Nicks,-,17,1
+10/12/2024,18,I Had Some Help,Post Malone Featuring Morgan Wallen,11,1,20
+10/12/2024,19,Espresso,Sabrina Carpenter,19,6,23
+10/12/2024,20,Hot To Go!,Chappell Roan,15,15,4
+10/12/2024,21,Too Sweet,Hozier,20,3,28
+10/12/2024,22,Love Me Back,Max McNown,-,22,1
+10/12/2024,23,Miles On It,Marshmello & Kane Brown,21,11,21
+10/12/2024,24,Heavy Is The Crown,Linkin Park,24,24,2
+10/12/2024,25,Stargazing,Myles Smith,-,10,12
+10/19/2024,1,Darkest Hour (Helene Edit),Eric Church,-,1,1
+10/19/2024,2,A Bar Song (Tipsy),Shaboozey,2,1,26
+10/19/2024,3,I Am Not Okay,Jelly Roll,5,2,18
+10/19/2024,4,Beautiful Things,Benson Boone,15,1,38
+10/19/2024,5,A Lot More Free,Max McNown,3,3,7
+10/19/2024,6,We Pray,"Coldplay Featuring Little Simz, Burna Boy, Elyanna & TINI",-,6,1
+10/19/2024,7,Die With A Smile,Lady Gaga & Bruno Mars,9,1,8
+10/19/2024,8,Lonely Road,mgk & Jelly Roll,8,3,8
+10/19/2024,9,Birds Of A Feather,Billie Eilish,6,2,20
+10/19/2024,10,Lose Control,Teddy Swims,10,1,65
+10/19/2024,11,You Look Like You Love Me,Ella Langley Featuring Riley Green,14,11,16
+10/19/2024,12,The Door,Teddy Swims,12,7,15
+10/19/2024,13,Fighter,Jon Kahn,-,1,3
+10/19/2024,14,Miles On It,Marshmello & Kane Brown,23,11,22
+10/19/2024,15,I Had Some Help,Post Malone Featuring Morgan Wallen,18,1,21
+10/19/2024,16,Ain't No Love In Oklahoma,Luke Combs,16,2,21
+10/19/2024,17,"Good Luck, Babe!",Chappell Roan,13,6,16
+10/19/2024,18,I'm Gonna Love You,Cody Johnson & Carrie Underwood,1,1,2
+10/19/2024,19,Espresso,Sabrina Carpenter,19,6,24
+10/19/2024,20,Liar,Jelly Roll,11,4,3
+10/19/2024,21,Hot To Go!,Chappell Roan,20,15,5
+10/19/2024,22,Too Sweet,Hozier,21,3,29
+10/19/2024,23,Moonlit Floor,LISA,-,23,1
+10/19/2024,24,Stargazing,Myles Smith,25,10,13
+10/19/2024,25,"Girl, I'm Gonna Miss You",Milli Vanilli,-,25,1
+10/26/2024,1,A Bar Song (Tipsy),Shaboozey,2,1,27
+10/26/2024,2,Beautiful Things,Benson Boone,4,1,39
+10/26/2024,3,Super Tuna,JIN,-,3,2
+10/26/2024,4,A Lot More Free,Max McNown,5,3,8
+10/26/2024,5,Lose Control,Teddy Swims,10,1,66
+10/26/2024,6,Awaken,Breaking Benjamin,-,6,1
+10/26/2024,7,You Look Like You Love Me,Ella Langley Featuring Riley Green,11,7,17
+10/26/2024,8,Die With A Smile,Lady Gaga & Bruno Mars,7,1,9
+10/26/2024,9,Birds Of A Feather,Billie Eilish,9,2,21
+10/26/2024,10,Mantra,JENNIE,-,10,1
+10/26/2024,11,The Door,Teddy Swims,12,7,16
+10/26/2024,12,Past Yesterday,Jelly Roll Featuring Skylar Grey,-,12,1
+10/26/2024,13,I Had Some Help,Post Malone Featuring Morgan Wallen,15,1,22
+10/26/2024,14,Winning Streak,Jelly Roll,-,14,1
+10/26/2024,15,Espresso,Sabrina Carpenter,19,6,25
+10/26/2024,16,Ain't No Love In Oklahoma,Luke Combs,16,2,22
+10/26/2024,17,"Good Luck, Babe!",Chappell Roan,17,6,17
+10/26/2024,18,Miles On It,Marshmello & Kane Brown,14,11,23
+10/26/2024,19,Hot To Go!,Chappell Roan,21,15,6
+10/26/2024,20,I'm Gonna Love You,Cody Johnson & Carrie Underwood,18,1,3
+10/26/2024,21,Too Sweet,Hozier,22,3,30
+10/26/2024,22,The Lighthouse,Stevie Nicks,-,17,2
+10/26/2024,23,Stargazing,Myles Smith,24,10,14
+10/26/2024,24,We Pray,"Coldplay Featuring Little Simz, Burna Boy, Elyanna & TINI",6,6,2
+10/26/2024,25,A Work Of Art,Ice Nine Kills Featuring Shavo,-,25,1
+11/2/2024,1,Love Somebody,Morgan Wallen,-,1,1
+11/2/2024,2,APT.,ROSE & Bruno Mars,-,2,1
+11/2/2024,3,A Bar Song (Tipsy),Shaboozey,1,1,28
+11/2/2024,4,Lose Control,Teddy Swims,5,1,67
+11/2/2024,5,I Am Not Okay,Jelly Roll,-,2,19
+11/2/2024,6,Birds Of A Feather,Billie Eilish,9,2,22
+11/2/2024,7,Beautiful Things,Benson Boone,2,1,40
+11/2/2024,8,Die With A Smile,Lady Gaga & Bruno Mars,8,1,10
+11/2/2024,9,You Look Like You Love Me,Ella Langley Featuring Riley Green,7,7,18
+11/2/2024,10,Awaken,Breaking Benjamin,6,6,2
+11/2/2024,11,The Door,Teddy Swims,11,7,17
+11/2/2024,12,A Lot More Free,Max McNown,4,3,9
+11/2/2024,13,You For A Reason,Warren Zeiders,-,13,1
+11/2/2024,14,Night Changes,One Direction,-,14,21
+11/2/2024,15,I Had Some Help,Post Malone Featuring Morgan Wallen,13,1,23
+11/2/2024,16,Hot To Go!,Chappell Roan,19,15,7
+11/2/2024,17,Espresso,Sabrina Carpenter,15,6,26
+11/2/2024,18,The Truth,Megan Woods,-,18,1
+11/2/2024,19,Stargazing,Myles Smith,23,10,15
+11/2/2024,20,Pink Pony Club,Chappell Roan,-,20,3
+11/2/2024,21,Too Sweet,Hozier,21,3,31
+11/2/2024,22,Thriller,Michael Jackson,-,2,46
+11/2/2024,23,"Good Luck, Babe!",Chappell Roan,17,6,18
+11/2/2024,24,I'm Gonna Love You,Cody Johnson & Carrie Underwood,20,1,4
+11/2/2024,25,Ain't No Love In Oklahoma,Luke Combs,16,2,23
+11/9/2024,1,Die With A Smile,Lady Gaga & Bruno Mars,8,1,11
+11/9/2024,2,Disease,Lady Gaga,-,2,1
+11/9/2024,3,I'll Be There,JIN,-,3,1
+11/9/2024,4,Love Somebody,Morgan Wallen,1,1,2
+11/9/2024,5,Thriller,Michael Jackson,22,2,47
+11/9/2024,6,APT.,ROSE & Bruno Mars,2,2,2
+11/9/2024,7,A Bar Song (Tipsy),Shaboozey,3,1,29
+11/9/2024,8,Monster Mash,"Bobby ""Boris"" Pickett And The Crypt-Kickers",-,3,26
+11/9/2024,9,I Am Not Okay,Jelly Roll,5,2,20
+11/9/2024,10,Wondering Why,The Red Clay Strays,-,10,3
+11/9/2024,11,Ghostbusters,Ray Parker Jr.,-,11,17
+11/9/2024,12,Lose Control,Teddy Swims,4,1,68
+11/9/2024,13,Birds Of A Feather,Billie Eilish,6,2,23
+11/9/2024,14,Beautiful Things,Benson Boone,7,1,41
+11/9/2024,15,You Look Like You Love Me,Ella Langley Featuring Riley Green,9,7,19
+11/9/2024,16,The Door,Teddy Swims,11,7,18
+11/9/2024,17,This Is Halloween,The Citizens of Halloween,-,17,9
+11/9/2024,18,The Lighthouse,Stevie Nicks,-,17,3
+11/9/2024,19,I Had Some Help,Post Malone Featuring Morgan Wallen,15,1,24
+11/9/2024,20,The Truth,Megan Woods,18,18,2
+11/9/2024,21,A Lot More Free,Max McNown,12,3,10
+11/9/2024,22,Espresso,Sabrina Carpenter,17,6,27
+11/9/2024,23,Hot To Go!,Chappell Roan,16,15,8
+11/9/2024,24,Stargazing,Myles Smith,19,10,16
+11/9/2024,25,Whatchu Kno About Me,GloRilla & Sexyy Red,-,25,1
+11/16/2024,1,Goodbye Joe,Tom MacDonald & Nova Rockafeller,-,1,1
+11/16/2024,2,God Bless The U.S.A.,Lee Greenwood & Drew Jacobs,-,2,1
+11/16/2024,3,A Bar Song (Tipsy),Shaboozey,7,1,30
+11/16/2024,4,Die With A Smile,Lady Gaga & Bruno Mars,1,1,12
+11/16/2024,5,I Am Not Okay,Jelly Roll,9,2,21
+11/16/2024,6,APT.,ROSE & Bruno Mars,6,2,3
+11/16/2024,7,Love Somebody,Morgan Wallen,4,1,3
+11/16/2024,8,Pink Pony Club,Chappell Roan,-,8,4
+11/16/2024,9,Lose Control,Teddy Swims,12,1,69
+11/16/2024,10,You Look Like You Love Me,Ella Langley Featuring Riley Green,15,7,20
+11/16/2024,11,Beautiful Things,Benson Boone,14,1,42
+11/16/2024,12,Hot To Go!,Chappell Roan,23,12,9
+11/16/2024,13,God Bless The USA,Lee Greenwood,-,1,14
+11/16/2024,14,The Door,Teddy Swims,16,7,19
+11/16/2024,15,Birds Of A Feather,Billie Eilish,13,2,24
+11/16/2024,16,A Lot More Free,Max McNown,21,3,11
+11/16/2024,17,Y.M.C.A.,Village People,-,17,1
+11/16/2024,18,That’s So True,Gracie Abrams,-,18,1
+11/16/2024,19,I Had Some Help,Post Malone Featuring Morgan Wallen,19,1,25
+11/16/2024,20,Stargazing,Myles Smith,24,10,17
+11/16/2024,21,"Good Luck, Babe!",Chappell Roan,-,6,19
+11/16/2024,22,Disease,Lady Gaga,2,2,2
+11/16/2024,23,The Truth,Megan Woods,20,18,3
+11/16/2024,24,Espresso,Sabrina Carpenter,22,6,28
+11/16/2024,25,Too Sweet,Hozier,-,3,32
+11/23/2024,1,Hard Fought Hallelujah,Brandon Lake,-,1,1
+11/23/2024,2,A Bar Song (Tipsy),Shaboozey,3,1,31
+11/23/2024,3,Die With A Smile,Lady Gaga & Bruno Mars,4,1,13
+11/23/2024,4,APT.,ROSE & Bruno Mars,6,2,4
+11/23/2024,5,Love Somebody,Morgan Wallen,7,1,4
+11/23/2024,6,I Am Not Okay,Jelly Roll,5,2,22
+11/23/2024,7,Lose Control,Teddy Swims,9,1,70
+11/23/2024,8,Birds Of A Feather,Billie Eilish,15,2,25
+11/23/2024,9,You Look Like You Love Me,Ella Langley Featuring Riley Green,10,7,21
+11/23/2024,10,Beautiful Things,Benson Boone,11,1,43
+11/23/2024,11,God Bless The U.S.A.,Lee Greenwood & Drew Jacobs,2,2,2
+11/23/2024,12,The Door,Teddy Swims,14,7,20
+11/23/2024,13,That’s So True,Gracie Abrams,18,13,2
+11/23/2024,14,High Road,Zach Bryan,-,14,1
+11/23/2024,15,Labour,Paris Paloma,-,13,2
+11/23/2024,16,God Only Knows,for KING & COUNTRY,-,13,6
+11/23/2024,17,Pink Pony Club,Chappell Roan,8,8,5
+11/23/2024,18,A Lot More Free,Max McNown,16,3,12
+11/23/2024,19,This World's A Giant,Zach Bryan,-,19,1
+11/23/2024,20,Stargazing,Myles Smith,20,10,18
+11/23/2024,21,Hot To Go!,Chappell Roan,12,12,10
+11/23/2024,22,The Truth,Megan Woods,23,18,4
+11/23/2024,23,I Had Some Help,Post Malone Featuring Morgan Wallen,19,1,26
+11/23/2024,24,Disease,Lady Gaga,22,2,3
+11/23/2024,25,Espresso,Sabrina Carpenter,24,6,29
+11/30/2024,1,Running Wild,JIN,-,1,1
+11/30/2024,2,AGATS2 (Insecure),Juice WRLD & Nicki Minaj,-,2,1
+11/30/2024,3,Somethin' 'Bout A Woman,Thomas Rhett Featuring Teddy Swims,-,3,1
+11/30/2024,4,A Bar Song (Tipsy),Shaboozey,2,1,32
+11/30/2024,5,Die With A Smile,Lady Gaga & Bruno Mars,3,1,14
+11/30/2024,6,Lose Control,Teddy Swims,7,1,71
+11/30/2024,7,Believe,Brooks & Dunn With Jelly Roll,-,7,1
+11/30/2024,8,You Look Like You Love Me,Ella Langley Featuring Riley Green,9,7,22
+11/30/2024,9,Good News,Shaboozey,-,9,1
+11/30/2024,10,I'm Gonna Love You,Cody Johnson & Carrie Underwood,-,1,5
+11/30/2024,11,Neon Moon,Brooks & Dunn With Morgan Wallen,-,11,1
+11/30/2024,12,APT.,ROSE & Bruno Mars,4,2,5
+11/30/2024,13,Love Somebody,Morgan Wallen,5,1,5
+11/30/2024,14,I Am Not Okay,Jelly Roll,6,2,23
+11/30/2024,15,Texas,Blake Shelton,-,15,1
+11/30/2024,16,Ain't No Love In Oklahoma,Luke Combs,-,2,24
+11/30/2024,17,The Door,Teddy Swims,12,7,21
+11/30/2024,18,Liar,Jelly Roll,-,4,4
+11/30/2024,19,Beautiful Things,Benson Boone,10,1,44
+11/30/2024,20,Heart On The Window,JIN & WENDY,-,20,1
+11/30/2024,21,Birds Of A Feather,Billie Eilish,8,2,26
+11/30/2024,22,Another Level,JIN,-,22,1
+11/30/2024,23,I Will Come To You,JIN,-,23,1
+11/30/2024,24,That’s So True,Gracie Abrams,13,13,3
+11/30/2024,25,Falling,JIN,-,25,1
+12/7/2024,1,A Bar Song (Tipsy),Shaboozey,4,1,33
+12/7/2024,2,APT.,ROSE & Bruno Mars,12,2,6
+12/7/2024,3,Defying Gravity,Cynthia Erivo Featuring Ariana Grande,-,3,1
+12/7/2024,4,Believe,Brooks & Dunn With Jelly Roll,7,4,2
+12/7/2024,5,You Look Like You Love Me,Ella Langley Featuring Riley Green,8,5,23
+12/7/2024,6,Squabble Up,Kendrick Lamar,-,6,1
+12/7/2024,7,Somethin' 'Bout A Woman,Thomas Rhett Featuring Teddy Swims,3,3,2
+12/7/2024,8,I Am Not Okay,Jelly Roll,14,2,24
+12/7/2024,9,Die With A Smile,Lady Gaga & Bruno Mars,5,1,15
+12/7/2024,10,Lose Control,Teddy Swims,6,1,72
+12/7/2024,11,I'm Gonna Love You,Cody Johnson & Carrie Underwood,10,1,6
+12/7/2024,12,TV Off,Kendrick Lamar Featuring Lefty Gunplay,-,12,1
+12/7/2024,13,Love Somebody,Morgan Wallen,13,1,6
+12/7/2024,14,Not Like Us,Kendrick Lamar,-,2,20
+12/7/2024,15,Popular,Ariana Grande,-,15,1
+12/7/2024,16,Good News,Shaboozey,9,9,2
+12/7/2024,17,Liar,Jelly Roll,18,4,5
+12/7/2024,18,The Door,Teddy Swims,17,7,22
+12/7/2024,19,Ain't No Love In Oklahoma,Luke Combs,16,2,25
+12/7/2024,20,Last Of My Kind,Shaboozey Featuring Paul Cauthen,-,20,1
+12/7/2024,21,4x4xU,Lainey Wilson,-,21,1
+12/7/2024,22,That’s So True,Gracie Abrams,24,13,4
+12/7/2024,23,Birds Of A Feather,Billie Eilish,21,2,27
+12/7/2024,24,Beautiful Things,Benson Boone,19,1,45
+12/7/2024,25,Mayday,Three Days Grace,-,25,1
+12/14/2024,1,Winter Ahead,V With Park Hyo Shin,-,1,1
+12/14/2024,2,A Bar Song (Tipsy),Shaboozey,1,1,34
+12/14/2024,3,APT.,ROSE & Bruno Mars,2,2,7
+12/14/2024,4,Defying Gravity,Cynthia Erivo Featuring Ariana Grande,3,3,2
+12/14/2024,5,Die With A Smile,Lady Gaga & Bruno Mars,9,1,16
+12/14/2024,6,All I Want For Christmas Is You,Mariah Carey,-,1,109
+12/14/2024,7,I Am Not Okay,Jelly Roll,8,2,25
+12/14/2024,8,Love Somebody,Morgan Wallen,13,1,7
+12/14/2024,9,Sunday In The South,"Shenandoah, Jason Aldean & Luke Bryan",-,9,2
+12/14/2024,10,Lose Control,Teddy Swims,10,1,73
+12/14/2024,11,Squabble Up,Kendrick Lamar,6,6,2
+12/14/2024,12,You Look Like You Love Me,Ella Langley Featuring Riley Green,5,5,24
+12/14/2024,13,Who,Jimin,-,1,7
+12/14/2024,14,TV Off,Kendrick Lamar Featuring Lefty Gunplay,12,12,2
+12/14/2024,15,Popular,Ariana Grande,15,15,2
+12/14/2024,16,Beautiful Things,Benson Boone,24,1,46
+12/14/2024,17,Last Christmas,Wham!,-,5,30
+12/14/2024,18,Birds Of A Feather,Billie Eilish,23,2,28
+12/14/2024,19,The Door,Teddy Swims,18,7,23
+12/14/2024,20,Last Of My Kind,Shaboozey Featuring Paul Cauthen,20,20,2
+12/14/2024,21,Somethin' 'Bout A Woman,Thomas Rhett Featuring Teddy Swims,7,3,3
+12/14/2024,22,Y.M.C.A.,Village People,-,17,2
+12/14/2024,23,Not Like Us,Kendrick Lamar,14,2,21
+12/14/2024,24,I'm Gonna Love You,Cody Johnson & Carrie Underwood,11,1,7
+12/14/2024,25,Good News,Shaboozey,16,9,3
+12/21/2024,1,White Christmas,V & Bing Crosby,-,1,1
+12/21/2024,2,A Bar Song (Tipsy),Shaboozey,2,1,35
+12/21/2024,3,APT.,ROSE & Bruno Mars,3,2,8
+12/21/2024,4,All I Want For Christmas Is You,Mariah Carey,6,1,110
+12/21/2024,5,Sunday In The South,"Shenandoah, Jason Aldean & Luke Bryan",9,5,3
+12/21/2024,6,Die With A Smile,Lady Gaga & Bruno Mars,5,1,17
+12/21/2024,7,Good News,Shaboozey,25,7,4
+12/21/2024,8,Rockin' Around The Christmas Tree,Brenda Lee,-,4,52
+12/21/2024,9,You Look Like You Love Me,Ella Langley Featuring Riley Green,12,5,25
+12/21/2024,10,The Sound Of Silence,Disturbed,-,10,36
+12/21/2024,11,A Holly Jolly Christmas,Burl Ives,-,11,12
+12/21/2024,12,Defying Gravity,Cynthia Erivo Featuring Ariana Grande,4,3,3
+12/21/2024,13,Lose Control,Teddy Swims,10,1,74
+12/21/2024,14,Last Christmas,Wham!,17,5,31
+12/21/2024,15,Love Somebody,Morgan Wallen,8,1,8
+12/21/2024,16,I Am Not Okay,Jelly Roll,7,2,26
+12/21/2024,17,All My Love,Coldplay,-,17,1
+12/21/2024,18,Squabble Up,Kendrick Lamar,11,6,3
+12/21/2024,19,Stargazing,Myles Smith,-,10,19
+12/21/2024,20,Birds Of A Feather,Billie Eilish,18,2,29
+12/21/2024,21,Don't Mind If I Do,Riley Green Featuring Ella Langley,-,21,1
+12/21/2024,22,Beautiful Things,Benson Boone,16,1,47
+12/21/2024,23,Who,Jimin,13,1,8
+12/21/2024,24,Underneath The Tree,Kelly Clarkson,-,16,22
+12/21/2024,25,Georgia Ways,"Quavo, Luke Bryan & Teddy Swims",-,25,1
+12/28/2024,1,All I Want For Christmas Is You,Mariah Carey,4,1,111
+12/28/2024,2,Last Christmas,Wham!,14,2,32
+12/28/2024,3,A Bar Song (Tipsy),Shaboozey,2,1,36
+12/28/2024,4,APT.,ROSE & Bruno Mars,3,2,9
+12/28/2024,5,Walkin On Water,Stray Kids,-,5,1
+12/28/2024,6,Die With A Smile,Lady Gaga & Bruno Mars,6,1,18
+12/28/2024,7,Lose Control,Teddy Swims,13,1,75
+12/28/2024,8,That’s So True,Gracie Abrams,-,8,5
+12/28/2024,9,The Christmas Song (Merry Christmas To You),"Nat ""King"" Cole",-,9,23
+12/28/2024,10,A Holly Jolly Christmas,Burl Ives,11,10,13
+12/28/2024,11,Love Somebody,Morgan Wallen,15,1,9
+12/28/2024,12,Beautiful Things,Benson Boone,22,1,48
+12/28/2024,13,Good News,Shaboozey,7,7,5
+12/28/2024,14,You Look Like You Love Me,Ella Langley Featuring Riley Green,9,5,26
+12/28/2024,15,I Am Not Okay,Jelly Roll,16,2,27
+12/28/2024,16,Birds Of A Feather,Billie Eilish,20,2,30
+12/28/2024,17,Rockin' Around The Christmas Tree,Brenda Lee,8,4,53
+12/28/2024,18,Messy,Lola Young,-,18,1
+12/28/2024,19,Do They Know It's Christmas?,Band Aid,-,19,3
+12/28/2024,20,All My Love,Coldplay,17,17,2
+12/28/2024,21,Squabble Up,Kendrick Lamar,18,6,4
+12/28/2024,22,Hang Tight Honey,Lainey Wilson,-,22,2
+12/28/2024,23,Defying Gravity,Cynthia Erivo Featuring Ariana Grande,12,3,4
+12/28/2024,24,Underneath The Tree,Kelly Clarkson,24,16,23
+12/28/2024,25,Mele Kalikimaka (Merry Christmas),Bing Crosby & The Andrews Sisters,-,25,7
